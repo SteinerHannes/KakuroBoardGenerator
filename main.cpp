@@ -2,7 +2,6 @@
 #include <vector>
 #include <cstdlib>
 #include <ctime>
-#include <algorithm>
 #include <unordered_set>
 #include <utility>
 
@@ -48,35 +47,37 @@ Solution generateRandomSolution(int gridSize) {
 }
 
 // Evaluate fitness of a solution
-int evaluateFitness(const Solution &sol, const vector<pair<int, vector<pair<int, int>>>> &constraints) {
+int evaluateFitness(const Solution &sol) {
+    int gridSize = sol.grid.size();
     int fitness = 0;
 
-    for (const auto &constraint : constraints) {
-        int targetSum = constraint.first;
-        const auto &cells = constraint.second;
-        int sum = 0;
-        unordered_set<int> seen; // Track unique numbers
-        bool valid = true;
+    // Check rows and columns for uniqueness
+    for (int i = 0; i < gridSize; ++i) {
+        unordered_set<int> rowSet, colSet;
+        bool validRow = true, validCol = true;
 
-        for (const auto &cell : cells) {
-            int r = cell.first, c = cell.second;
-            if (sol.grid[r][c] == -1) {
-                valid = false; // Unfillable cell in a group
-                break;
+        for (int j = 0; j < gridSize; ++j) {
+            // Row uniqueness
+            if (sol.grid[i][j] != -1) {
+                if (rowSet.count(sol.grid[i][j])) {
+                    validRow = false;
+                } else {
+                    rowSet.insert(sol.grid[i][j]);
+                }
             }
-            sum += sol.grid[r][c];
 
-            // Check for duplicate digits
-            if (seen.count(sol.grid[r][c]) > 0) {
-                valid = false; // Duplicate found
-                break;
+            // Column uniqueness
+            if (sol.grid[j][i] != -1) {
+                if (colSet.count(sol.grid[j][i])) {
+                    validCol = false;
+                } else {
+                    colSet.insert(sol.grid[j][i]);
+                }
             }
-            seen.insert(sol.grid[r][c]);
         }
 
-        if (valid && sum == targetSum) {
-            fitness += 1; // Reward for satisfying constraint
-        }
+        if (validRow) fitness += 1; // Reward valid rows
+        if (validCol) fitness += 1; // Reward valid columns
     }
 
     return fitness;
@@ -134,7 +135,7 @@ void mutate(Solution &sol) {
 }
 
 // Main evolutionary algorithm
-Solution evolutionaryAlgorithm(int gridSize, const vector<pair<int, vector<pair<int, int>>>> &constraints, int populationSize, int generations) {
+Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations) {
     vector<Solution> population;
 
     // Initialize random population
@@ -143,12 +144,12 @@ Solution evolutionaryAlgorithm(int gridSize, const vector<pair<int, vector<pair<
     }
 
     Solution bestSolution = population[0];
-    bestSolution.fitness = evaluateFitness(bestSolution, constraints);
+    bestSolution.fitness = evaluateFitness(bestSolution);
 
     for (int gen = 0; gen < generations; ++gen) {
         // Evaluate fitness
         for (auto &sol : population) {
-            sol.fitness = evaluateFitness(sol, constraints);
+            sol.fitness = evaluateFitness(sol);
             if (sol.fitness > bestSolution.fitness) {
                 bestSolution = sol;
             }
@@ -179,21 +180,14 @@ int main() {
 
     // Define board size
     int gridSize = 5;
-
-    // Define constraints (sum, list of cell positions)
-    vector<pair<int, vector<pair<int, int>>>> constraints = {
-        {10, {{0, 0}, {0, 1}, {0, 2}}},
-        {15, {{1, 0}, {1, 1}, {1, 2}}},
-        {7, {{2, 0}, {2, 1}}},
-    };
-
+;
     // Run evolutionary algorithm
-    Solution best = evolutionaryAlgorithm(gridSize, constraints, 50, 1000);
+    Solution best = evolutionaryAlgorithm(gridSize, 50, 1000);
 
     // Print the best solution
     for (const auto &row : best.grid) {
         for (int cell : row) {
-            cout << (cell == -1 ? "X" : to_string(cell)) << " ";
+            cout << (cell == -1 ? "X" : to_string(cell)) << "s ";
         }
         cout << endl;
     }
