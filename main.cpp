@@ -187,7 +187,7 @@ int main() {
     // Print the best solution
     for (const auto &row : best.grid) {
         for (int cell : row) {
-            cout << (cell == -1 ? "X" : to_string(cell)) << "s ";
+            cout << (cell == -1 ? "X" : to_string(cell)) << " ";
         }
         cout << endl;
     }
