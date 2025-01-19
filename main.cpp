@@ -100,20 +100,20 @@ int evaluateFitness(const Solution &sol) {
     bool validBoard = true;
 
     // Check rows and columns
-    for (int i = 0; i < gridSize; ++i) {
+    for (int i = 1; i < gridSize; ++i) {
         // Check each row and column
         for (int isColumn = 0; isColumn <= 1; ++isColumn) {
             vector<int> sequence;
             int consecutiveBlocks = 0;
             int numbersInGroup = 0;
             
-            for (int j = 0; j < gridSize; ++j) {
+            for (int j = 1; j < gridSize; ++j) {
                 int value = isColumn ? sol.grid[j][i] : sol.grid[i][j];
                 
                 if (value == -1) {
                     // Check for too many consecutive blocks
                     consecutiveBlocks++;
-                    if (consecutiveBlocks > 4) {
+                    if (consecutiveBlocks > 5) {
                         fitness -= 50; // Punish too many consecutive blocks
                     }
                     
@@ -130,7 +130,7 @@ int evaluateFitness(const Solution &sol) {
                     bool foundRepeat = false;
                     for (int num : sequence) {
                         if (num == value) {
-                            fitness -= 600; // Punish repeated numbers
+                            fitness -= 60; // Punish repeated numbers
                             foundRepeat = true;
                             validBoard = false;
                             break;
@@ -207,7 +207,7 @@ Solution crossover(const Solution &parent1, const Solution &parent2) {
 
     // Keep track of numbers in each column between blocks
     vector<unordered_set<int>> colSets(gridSize);
-    vector<bool> colHasBlock(gridSize, false);  // Track if column has -1
+    vector<bool> colHasBlock(gridSize, false);
 
     for (int i = 1; i < gridSize; ++i) {
         unordered_set<int> rowSet;
@@ -217,55 +217,45 @@ Solution crossover(const Solution &parent1, const Solution &parent2) {
             // Randomly choose between placing a block or a number
             bool placeBlock = (rand() % 10 == 0);  // 10% chance for a block
             
-            if (placeBlock) {
-                child.grid[i][j] = -1;
-                rowSet.clear();  // Reset row set after block
-                colSets[j].clear();  // Reset column set after block
-                hasBlockInRow = true;
-                colHasBlock[j] = true;
-            } else {
-                // Try to get valid value from either parent
-                const Solution &selectedParent = (rand() % 2 == 0) ? parent1 : parent2;
-                vector<int> validValues;
+                // Try to find valid value from parents
+                bool foundValid = false;
+                int maxAttempts = gridSize * gridSize;  // Maximum number of attempts
+                int attempts = 0;
                 
-                // Collect all valid values
-                for (int val = 1; val <= 9; ++val) {
-                    if (rowSet.count(val) == 0 && colSets[j].count(val) == 0) {
-                        validValues.push_back(val);
+                while (!foundValid && attempts < maxAttempts) {
+                    // Randomly select a parent
+                    const Solution &selectedParent = (rand() % 2 == 0) ? parent1 : parent2;
+                    
+                    // Get random position from parent
+                    int r = rand() % gridSize;
+                    int c = rand() % gridSize;
+                    int value = selectedParent.grid[r][c];
+                    
+                    // Check if value is valid (not -1 and not used in current row/column)
+                    if (value != -1 && 
+                        rowSet.count(value) == 0 && 
+                        colSets[j].count(value) == 0) {
+                        child.grid[i][j] = value;
+                        rowSet.insert(value);
+                        colSets[j].insert(value);
+                        foundValid = true;
                     }
+                    
+                    attempts++;
                 }
                 
-                if (validValues.empty()) {
-                    // If no valid values, place a block
+                // If no valid value found after max attempts, place a block
+                if (!foundValid) {
                     child.grid[i][j] = -1;
                     rowSet.clear();
                     colSets[j].clear();
                     hasBlockInRow = true;
                     colHasBlock[j] = true;
-                } else {
-                    // Place a random valid value
-                    int valueIndex = rand() % validValues.size();
-                    int value = validValues[valueIndex];
-                    child.grid[i][j] = value;
-                    rowSet.insert(value);
-                    colSets[j].insert(value);
                 }
             }
-        }
     }
 
     // Ensure no more than 4 consecutive blocks
-    for (int i = 1; i < gridSize - 4; ++i) {
-        for (int j = 1; j < gridSize; ++j) {
-            if (child.grid[i][j] == -1 && 
-                child.grid[i+1][j] == -1 && 
-                child.grid[i+2][j] == -1 && 
-                child.grid[i+3][j] == -1 && 
-                child.grid[i+4][j] == -1) {
-                child.grid[i+4][j] = rand() % 9 + 1;  // Replace last block with number
-            }
-        }
-    }
 
     return child;
 }
