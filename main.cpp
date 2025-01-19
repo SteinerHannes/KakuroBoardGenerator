@@ -116,7 +116,7 @@ int evaluateFitness(const Solution &sol) {
                     consecutiveBlocks++;
                     if (consecutiveBlocks > 5) {
                         fitness -= 50; // Punish too many consecutive blocks
-                        //cout << "consecutive blocks: " << consecutiveBlocks << endl;
+                       
                     }
                     
                     // Reset number sequence when hitting a block
@@ -150,7 +150,7 @@ int evaluateFitness(const Solution &sol) {
                     // Check if group size exceeds 9
                     if (numbersInGroup > 9) {
                         fitness -= 60; // Punish groups larger than 9
-                        //cout << "more than 9" << endl;
+                        validBoard = false;
                     }
                 }
             }
@@ -200,63 +200,80 @@ bool isUnique(const Solution &sol, int row, int col, int value) {
     return true;
 }
 
+bool isValidInChild(const Solution &child, int row, int col, int value) {
+    if (value == -1) return true; // Always valid for block cells
+
+    int gridSize = child.grid.size();
+
+    // Check row for duplicates within contiguous groups
+    unordered_set<int> rowSet;
+    for (int j = 0; j < gridSize; ++j) {
+        if (child.grid[row][j] == -1) {
+            rowSet.clear(); // Reset when encountering a block
+        } else if (child.grid[row][j] == value) {
+            return false; // Duplicate found in the same group
+        } else {
+            rowSet.insert(child.grid[row][j]);
+        }
+    }
+
+    // Check column for duplicates within contiguous groups
+    unordered_set<int> colSet;
+    for (int i = 0; i < gridSize; ++i) {
+        if (child.grid[i][col] == -1) {
+            colSet.clear(); // Reset when encountering a block
+        } else if (child.grid[i][col] == value) {
+            return false; // Duplicate found in the same group
+        } else {
+            colSet.insert(child.grid[i][col]);
+        }
+    }
+
+    return true;
+}
+
 Solution crossover(const Solution &parent1, const Solution &parent2) {
     int gridSize = parent1.grid.size();
     Solution child(gridSize);
-    
+
     // First row and column are always -1
     for (int i = 0; i < gridSize; i++) {
         child.grid[0][i] = -1;
         child.grid[i][0] = -1;
     }
 
-    // Keep track of numbers in each column between blocks
-    vector<unordered_set<int>> colSets(gridSize);
-    vector<bool> colHasBlock(gridSize, false);
-
+    // Randomly choose sections from parents
     for (int i = 1; i < gridSize; ++i) {
-        unordered_set<int> rowSet;
-        bool hasBlockInRow = false;
-
         for (int j = 1; j < gridSize; ++j) {
-                // Try to find valid value from parents
-                bool foundValid = false;
-                int maxAttempts = gridSize * gridSize;  // Maximum number of attempts
-                int attempts = 0;
-                
-                while (!foundValid && attempts < maxAttempts) {
-                    // Randomly select a parent
-                    const Solution &selectedParent = (rand() % 2 == 0) ? parent1 : parent2;
-                    
-                    // Get random position from parent
-                    int r = rand() % gridSize;
-                    int c = rand() % gridSize;
-                    int value = selectedParent.grid[r][c];
-                    
-                    // Check if value is valid (not -1 and not used in current row/column)
-                    if (value != -1 && 
-                        rowSet.count(value) == 0 && 
-                        colSets[j].count(value) == 0) {
-                        child.grid[i][j] = value;
-                        rowSet.insert(value);
-                        colSets[j].insert(value);
-                        foundValid = true;
-                    }
-                    
-                    attempts++;
-                }
-                
-                // If no valid value found after max attempts, place a block
-                if (!foundValid) {
-                    child.grid[i][j] = -1;
-                    rowSet.clear();
-                    colSets[j].clear();
-                    hasBlockInRow = true;
-                    colHasBlock[j] = true;
+            if (rand() % 100 < 70) {
+                // 80% chance to copy directly from one of the parents
+                const Solution &selectedParent = (rand() % 2 == 0) ? parent1 : parent2;
+                child.grid[i][j] = selectedParent.grid[i][j];
+                continue; 
+            }
+
+            // 20% chance or if the copied value was invalid, search for a valid value
+            bool valueFound = false;
+            for (int attempts = 0; attempts < 10; ++attempts) { // Limit retries
+                const Solution &selectedParent = (rand() % 2 == 0) ? parent1 : parent2;
+                int r = 1 + (rand() % (gridSize - 1));
+                int c = 1 + (rand() % (gridSize - 1));
+                int value = selectedParent.grid[r][c];
+
+                if (isValidInChild(child, i, j, value)) {
+                    child.grid[i][j] = value;
+                    valueFound = true;
+                    break;
                 }
             }
-    }
 
+            // Fallback: If no valid value found, copy directly from the same position in one of the parents
+            if (!valueFound) {
+                const Solution &selectedParent = (rand() % 2 == 0) ? parent1 : parent2;
+                child.grid[i][j] = selectedParent.grid[i][j];
+            }
+        }
+    }
 
     return child;
 }
@@ -295,8 +312,9 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
 
     Solution bestSolution = population[0];
     bestSolution.fitness = evaluateFitness(bestSolution);
+    int gen = 0;
 
-    for (int gen = 0; gen < generations; ++gen) {
+    while (bestSolution.fitness < 1000) {
         // Evaluate fitness
         for (auto &sol : population) {
             sol.fitness = evaluateFitness(sol);
@@ -327,7 +345,7 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
 
             Solution child = crossover(parent1, parent2);
 
-            if (rand() % 100 < 10) { // Mutation chance 10%
+            if (rand() % 100 < 40) { // Mutation chance 10%
                 mutate(child);
             }
 
@@ -337,6 +355,7 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
         population = newPopulation;
 
         cout << "Generation " << gen << " best fitness: " << bestSolution.fitness << endl;
+        gen++;
     }
 
     return bestSolution;
@@ -361,18 +380,18 @@ vector<vector<string>> deriveEmptyBoard(const vector<vector<int>> &grid) {
                     verticalSum += grid[k][j];
                 }
 
-                // Construct clue cell label
-                string clue = "";
-                if (verticalSum > 0) {
-                    clue += to_string(verticalSum) + "/";
-                }
-                if (horizontalSum > 0) {
-                    clue += to_string(horizontalSum);
+                // Construct clue cell label, ensuring "/" is always included
+                string clue = to_string(verticalSum) + "/" + to_string(horizontalSum);
+                if (verticalSum == 0) clue = "/" + to_string(horizontalSum); // Only horizontal
+                if (horizontalSum == 0) clue = to_string(verticalSum) + "/"; // Only vertical
+
+                if (clue == "0/0" ||  clue == "/0" ||  clue == "0/") {
+                    clue = "#"; // Replace unmodifiable cells
                 }
 
-                emptyBoard[i][j] = (clue.empty() ? "E" : clue);
+                emptyBoard[i][j] = clue;
             } else if (grid[i][j] != -1) {
-                emptyBoard[i][j] = "D"; // Modifiable cell
+                emptyBoard[i][j] = ""; // Replace modifiable cells
             }
         }
     }
@@ -393,7 +412,7 @@ void printEmptyBoard(const vector<vector<string>> &emptyBoard) {
     // Print each row with aligned columns
     for (const auto &row : emptyBoard) {
         for (size_t j = 0; j < row.size(); ++j) {
-            cout << setw(maxWidth) << row[j]; // Align each cell
+            cout << std::setw(maxWidth) << row[j]; // Align each cell
             if (j < row.size() - 1) {
                 cout << " "; // Add space between columns
             }
@@ -409,7 +428,7 @@ int main() {
     int gridSize = 12;
 ;
     // Run evolutionary algorithm
-    Solution best = evolutionaryAlgorithm(gridSize, 500, 100);
+    Solution best = evolutionaryAlgorithm(gridSize, 500, 3000);
 
     // Print the best solution
     for (const auto &row : best.grid) {
