@@ -6,6 +6,7 @@
 #include <utility>
 #include <algorithm>
 #include <iomanip>
+#include <fstream>
 
 using namespace std;
 
@@ -48,52 +49,6 @@ Solution generateRandomSolution(int gridSize) {
     return sol;
 }
 
-// Evaluate fitness of a solution
-// int evaluateFitness(const Solution &sol) {
-//     int gridSize = sol.grid.size();
-//     int fitness = 0;
-
-//     // Check rows and columns for uniqueness
-//     for (int i = 0; i < gridSize; ++i) {
-//         unordered_set<int> rowSet, colSet;
-//         bool validRow = true, validCol = true;
-
-//         for (int j = 0; j < gridSize; ++j) {
-//             // Row uniqueness
-//             if (sol.grid[i][j] != -1) {
-//                 if (rowSet.count(sol.grid[i][j])) {
-//                     validRow = false;
-//                 } else {
-//                     rowSet.insert(sol.grid[i][j]);
-//                 }
-//             }
-//             else{
-//                 rowSet.clear();
-//             }
-
-//             // Column uniqueness
-//             if (sol.grid[j][i] != -1) {
-//                 if (colSet.count(sol.grid[j][i])) {
-//                     validCol = false;
-//                 } else {
-//                     colSet.insert(sol.grid[j][i]);
-//                 }
-//             }
-//             else{
-//                 colSet.clear();
-//             }
-//         }
-
-//         if (validRow & validCol){
-//             fitness += 100; // Reward valid row
-//         }
-//         else{
-//             fitness -= 100; // Punish invalid row
-//         }
-//     }
-
-//     return fitness;
-// }
 
 int evaluateFitness(const Solution &sol) {
     int gridSize = sol.grid.size();
@@ -419,6 +374,37 @@ void printEmptyBoard(const vector<vector<string>> &emptyBoard) {
         }
         cout << endl;
     }
+}
+
+void saveEmptyBoardToFile(const vector<vector<string>> &emptyBoard, const string &filename) {
+    // Open the file for writing
+    ofstream outFile(filename);
+
+    if (!outFile) {
+        cerr << "Error opening file for writing!" << endl;
+        return;
+    }
+
+    // Determine the maximum width of any cell
+    size_t maxWidth = 0;
+    for (const auto &row : emptyBoard) {
+        for (const auto &cell : row) {
+            maxWidth = max(maxWidth, cell.size());
+        }
+    }
+
+    // Write each row with aligned columns to the file
+    for (const auto &row : emptyBoard) {
+        for (size_t j = 0; j < row.size(); ++j) {
+            outFile << std::setw(maxWidth) << row[j]; // Align each cell
+            if (j < row.size() - 1) {
+                outFile << " "; // Add space between columns
+            }
+        }
+        outFile << endl;
+    }
+
+    outFile.close(); // Close the file
 }
 
 int main() {
