@@ -195,26 +195,74 @@ bool isUnique(const Solution &sol, int row, int col, int value) {
     return true;
 }
 
-// Perform crossover between two parents
 Solution crossover(const Solution &parent1, const Solution &parent2) {
     int gridSize = parent1.grid.size();
     Solution child(gridSize);
-    vector<unordered_set<int>> rowUsed(gridSize);
-    vector<unordered_set<int>> colUsed(gridSize);
+    
+    // First row and column are always -1
+    for (int i = 0; i < gridSize; i++) {
+        child.grid[0][i] = -1;
+        child.grid[i][0] = -1;
+    }
 
-    for (int i = 0; i < gridSize; ++i) {
-        for (int j = 0; j < gridSize; ++j) {
-            int value = (rand() % 2 == 0) ? parent1.grid[i][j] : parent2.grid[i][j];
+    // Keep track of numbers in each column between blocks
+    vector<unordered_set<int>> colSets(gridSize);
+    vector<bool> colHasBlock(gridSize, false);  // Track if column has -1
 
-            // Ensure no duplicates in rows and columns
-            if (value != -1 && (rowUsed[i].count(value) || colUsed[j].count(value))) {
-                value = -1; // Mark as unfillable if duplicate
+    for (int i = 1; i < gridSize; ++i) {
+        unordered_set<int> rowSet;
+        bool hasBlockInRow = false;
+
+        for (int j = 1; j < gridSize; ++j) {
+            // Randomly choose between placing a block or a number
+            bool placeBlock = (rand() % 10 == 0);  // 10% chance for a block
+            
+            if (placeBlock) {
+                child.grid[i][j] = -1;
+                rowSet.clear();  // Reset row set after block
+                colSets[j].clear();  // Reset column set after block
+                hasBlockInRow = true;
+                colHasBlock[j] = true;
+            } else {
+                // Try to get valid value from either parent
+                const Solution &selectedParent = (rand() % 2 == 0) ? parent1 : parent2;
+                vector<int> validValues;
+                
+                // Collect all valid values
+                for (int val = 1; val <= 9; ++val) {
+                    if (rowSet.count(val) == 0 && colSets[j].count(val) == 0) {
+                        validValues.push_back(val);
+                    }
+                }
+                
+                if (validValues.empty()) {
+                    // If no valid values, place a block
+                    child.grid[i][j] = -1;
+                    rowSet.clear();
+                    colSets[j].clear();
+                    hasBlockInRow = true;
+                    colHasBlock[j] = true;
+                } else {
+                    // Place a random valid value
+                    int valueIndex = rand() % validValues.size();
+                    int value = validValues[valueIndex];
+                    child.grid[i][j] = value;
+                    rowSet.insert(value);
+                    colSets[j].insert(value);
+                }
             }
+        }
+    }
 
-            child.grid[i][j] = value;
-            if (value != -1) {
-                rowUsed[i].insert(value);
-                colUsed[j].insert(value);
+    // Ensure no more than 4 consecutive blocks
+    for (int i = 1; i < gridSize - 4; ++i) {
+        for (int j = 1; j < gridSize; ++j) {
+            if (child.grid[i][j] == -1 && 
+                child.grid[i+1][j] == -1 && 
+                child.grid[i+2][j] == -1 && 
+                child.grid[i+3][j] == -1 && 
+                child.grid[i+4][j] == -1) {
+                child.grid[i+4][j] = rand() % 9 + 1;  // Replace last block with number
             }
         }
     }
@@ -292,7 +340,7 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
 
             Solution child = crossover(parent1, parent2);
 
-            if (rand() % 100 < 10) { // Mutation chance 10%
+            if (rand() % 100 < 30) { // Mutation chance 10%
                 mutate(child);
             }
 
