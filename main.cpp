@@ -115,6 +115,7 @@ int evaluateFitness(const Solution &sol) {
                     consecutiveBlocks++;
                     if (consecutiveBlocks > 5) {
                         fitness -= 50; // Punish too many consecutive blocks
+                        //cout << "consecutive blocks: " << consecutiveBlocks << endl;
                     }
                     
                     // Reset number sequence when hitting a block
@@ -123,7 +124,7 @@ int evaluateFitness(const Solution &sol) {
                 } else {
                     consecutiveBlocks = 0;
                     numbersInGroup++;
-                    
+                    //cout << "Cons blocks 0" << endl;
                 
                     
                     // Check for repeating numbers in current sequence
@@ -133,8 +134,10 @@ int evaluateFitness(const Solution &sol) {
                             fitness -= 60; // Punish repeated numbers
                             foundRepeat = true;
                             validBoard = false;
+                            //cout << "repeated numbers " << num << endl;
                             break;
                         }
+                        
                     }
                     
                     // if (!foundRepeat) {
@@ -144,8 +147,9 @@ int evaluateFitness(const Solution &sol) {
                     sequence.push_back(value);
                     
                     // Check if group size exceeds 9
-                    if (numbersInGroup > 6) {
+                    if (numbersInGroup > 9) {
                         fitness -= 60; // Punish groups larger than 9
+                        //cout << "more than 9" << endl;
                     }
                 }
             }
@@ -214,9 +218,6 @@ Solution crossover(const Solution &parent1, const Solution &parent2) {
         bool hasBlockInRow = false;
 
         for (int j = 1; j < gridSize; ++j) {
-            // Randomly choose between placing a block or a number
-            bool placeBlock = (rand() % 10 == 0);  // 10% chance for a block
-            
                 // Try to find valid value from parents
                 bool foundValid = false;
                 int maxAttempts = gridSize * gridSize;  // Maximum number of attempts
@@ -255,7 +256,6 @@ Solution crossover(const Solution &parent1, const Solution &parent2) {
             }
     }
 
-    // Ensure no more than 4 consecutive blocks
 
     return child;
 }
@@ -314,23 +314,19 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
 
         // Selection
         vector<Solution> newPopulation;
-
-        //sort population by fitness
-        std::sort(population.begin(), population.end());
+        
 
         for (int i = 0; i < populationSize; ++i) {
-            Solution &parent1 = population[i];
-            Solution &parent2 = population[i];
+            int idx1 = rand() % populationSize;
+            int idx2 = rand() % populationSize;
+                    
+            Solution &parent1 = population[idx1];
+            Solution &parent2 = population[idx2];
             
-            if(i == populationSize - 1){
-                parent2 = population[0];
-            }
-            else{
-            }
 
             Solution child = crossover(parent1, parent2);
 
-            if (rand() % 100 < 30) { // Mutation chance 10%
+            if (rand() % 100 < 10) { // Mutation chance 10%
                 mutate(child);
             }
 
@@ -352,7 +348,7 @@ int main() {
     int gridSize = 12;
 ;
     // Run evolutionary algorithm
-    Solution best = evolutionaryAlgorithm(gridSize, 500, 19);
+    Solution best = evolutionaryAlgorithm(gridSize, 500, 100);
 
     // Print the best solution
     for (const auto &row : best.grid) {
