@@ -5,6 +5,7 @@
 #include <unordered_set>
 #include <utility>
 #include <algorithm>
+#include <iomanip>
 
 using namespace std;
 
@@ -341,6 +342,66 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
     return bestSolution;
 }
 
+vector<vector<string>> deriveEmptyBoard(const vector<vector<int>> &grid) {
+    int gridSize = grid.size();
+    vector<vector<string>> emptyBoard(gridSize, vector<string>(gridSize, "E"));
+
+    for (int i = 0; i < gridSize; ++i) {
+        for (int j = 0; j < gridSize; ++j) {
+            if (grid[i][j] == -1) { // Potential clue cell
+                int horizontalSum = 0, verticalSum = 0;
+
+                // Compute horizontal sum
+                for (int k = j + 1; k < gridSize && grid[i][k] != -1; ++k) {
+                    horizontalSum += grid[i][k];
+                }
+
+                // Compute vertical sum
+                for (int k = i + 1; k < gridSize && grid[k][j] != -1; ++k) {
+                    verticalSum += grid[k][j];
+                }
+
+                // Construct clue cell label
+                string clue = "";
+                if (verticalSum > 0) {
+                    clue += to_string(verticalSum) + "/";
+                }
+                if (horizontalSum > 0) {
+                    clue += to_string(horizontalSum);
+                }
+
+                emptyBoard[i][j] = (clue.empty() ? "E" : clue);
+            } else if (grid[i][j] != -1) {
+                emptyBoard[i][j] = "D"; // Modifiable cell
+            }
+        }
+    }
+
+    return emptyBoard;
+}
+
+// Function to print the derived empty board with aligned columns
+void printEmptyBoard(const vector<vector<string>> &emptyBoard) {
+    // Determine the maximum width of any cell
+    size_t maxWidth = 0;
+    for (const auto &row : emptyBoard) {
+        for (const auto &cell : row) {
+            maxWidth = max(maxWidth, cell.size());
+        }
+    }
+
+    // Print each row with aligned columns
+    for (const auto &row : emptyBoard) {
+        for (size_t j = 0; j < row.size(); ++j) {
+            cout << setw(maxWidth) << row[j]; // Align each cell
+            if (j < row.size() - 1) {
+                cout << " "; // Add space between columns
+            }
+        }
+        cout << endl;
+    }
+}
+
 int main() {
     srand(time(0));
 
@@ -357,6 +418,12 @@ int main() {
         }
         cout << endl;
     }
+
+    // Derive empty board
+    vector<vector<string>> emptyBoard = deriveEmptyBoard(best.grid);
+
+    // Print empty board
+    printEmptyBoard(emptyBoard);
 
     return 0;
 }
