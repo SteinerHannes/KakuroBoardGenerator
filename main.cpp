@@ -103,8 +103,8 @@ int evaluateFitness(const Solution &sol) {
                     sequence.push_back(value);
                     
                     // Check if group size exceeds 9
-                    if (numbersInGroup > 9) {
-                        fitness -= 60; // Punish groups larger than 9
+                    if (numbersInGroup > 9 || numbersInGroup == 1) {
+                        fitness -= 60; // Punish groups larger than 9 or smaller than 2
                         validBoard = false;
                     }
                 }
@@ -239,7 +239,7 @@ void mutate(Solution &sol) {
     int r = 0;
     int c = 0;
 
-    while (r == 0 || c == 0 || sol.grid[r][c] == -1)
+    while (r == 0 || c == 0)
     {
         r = rand() % gridSize;
         c = rand() % gridSize;
@@ -269,7 +269,7 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
     bestSolution.fitness = evaluateFitness(bestSolution);
     int gen = 0;
 
-    while (bestSolution.fitness < 1000) {
+    while (bestSolution.fitness < 1000 && gen < generations) {
         // Evaluate fitness
         for (auto &sol : population) {
             sol.fitness = evaluateFitness(sol);
