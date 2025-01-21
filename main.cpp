@@ -30,7 +30,7 @@ struct Solution {
 };
 
 // Generate a random solution ensuring no duplicates in rows or columns
-Solution generateRandomSolution(int gridSize) {
+/* Solution generateRandomSolution(int gridSize) {
     Solution sol(gridSize);
 
     for (int i = 0; i < gridSize; ++i) {
@@ -46,6 +46,71 @@ Solution generateRandomSolution(int gridSize) {
         }
     }
 
+    return sol;
+} */
+
+Solution generateRandomSolution(int gridSize) {
+    Solution sol(gridSize);
+    bool hasNumber = false;
+    
+    // First pass: generate grid
+    for (int i = 0; i < gridSize; ++i) {
+        for (int j = 0; j < gridSize; ++j) {
+            if (i == 0 || j == 0) {
+                sol.grid[i][j] = -1; // Unfillable cell
+            }
+            else if (rand() % 5 == 0) {
+                sol.grid[i][j] = -1;
+            } else {
+                sol.grid[i][j] = rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
+                hasNumber = true;
+            }
+        }
+    }
+    
+    // If no numbers were generated, force at least one
+    if (!hasNumber) {
+        int i = 1 + (rand() % (gridSize - 1));
+        int j = 1 + (rand() % (gridSize - 1));
+        sol.grid[i][j] = rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
+    }
+    
+    // Second pass: fix isolated numbers
+    bool needsFixing;
+    do {
+        needsFixing = false;
+        for (int i = 1; i < gridSize; ++i) {
+            for (int j = 1; j < gridSize; ++j) {
+                if (sol.grid[i][j] != -1) {
+                    // Check if number is isolated
+                    bool isIsolated = true;
+                    // Check adjacent cells (not diagonal)
+                    if ((i > 0 && sol.grid[i-1][j] != -1) ||
+                        (i < gridSize-1 && sol.grid[i+1][j] != -1) ||
+                        (j > 0 && sol.grid[i][j-1] != -1) ||
+                        (j < gridSize-1 && sol.grid[i][j+1] != -1)) {
+                        isIsolated = false;
+                    }
+                    
+                    if (isIsolated) {
+                        // Fix isolation by randomly making one adjacent cell a number
+                        vector<pair<int,int>> adjacent;
+                        if (i > 0) adjacent.push_back({i-1, j});
+                        if (i < gridSize-1) adjacent.push_back({i+1, j});
+                        if (j > 0) adjacent.push_back({i, j-1});
+                        if (j < gridSize-1) adjacent.push_back({i, j+1});
+                        
+                        if (!adjacent.empty()) {
+                            int idx = rand() % adjacent.size();
+                            sol.grid[adjacent[idx].first][adjacent[idx].second] = 
+                                rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
+                            needsFixing = true;
+                        }
+                    }
+                }
+            }
+        }
+    } while (needsFixing);
     return sol;
 }
 
@@ -103,7 +168,7 @@ int evaluateFitness(const Solution &sol) {
                     sequence.push_back(value);
                     
                     // Check if group size exceeds 9
-                    if (numbersInGroup > 9 || numbersInGroup == 1) {
+                    if (numbersInGroup > 9 /*|| numbersInGroup == 1*/) {
                         fitness -= 60; // Punish groups larger than 9 or smaller than 2
                         validBoard = false;
                     }
@@ -156,9 +221,30 @@ bool isUnique(const Solution &sol, int row, int col, int value) {
 }
 
 bool isValidInChild(const Solution &child, int row, int col, int value) {
-    if (value == -1) return true; // Always valid for block cells
-
     int gridSize = child.grid.size();
+
+     // If trying to place -1, check for consecutive numbers rule
+    if (value == -1) {
+        // Only need to check if previous cell exists and contains a number
+        if (col > 0 && child.grid[row][col-1] != -1) {
+            // Count consecutive numbers before this position
+            int consecutiveCount = 0;
+            int checkCol = col - 1;
+            
+            // Keep going left until we hit a -1 or the start of the row
+            while (checkCol >= 0 && child.grid[row][checkCol] != -1) {
+                consecutiveCount++;
+                checkCol--;
+            }
+            
+            // If only one number is found, -1 cannot be placed
+            if (consecutiveCount == 1) {
+                //cout << "one consecutive" << endl;
+                return false;
+            }
+        }
+        return true;
+    }
 
     // Check row for duplicates within contiguous groups
     unordered_set<int> rowSet;
@@ -197,10 +283,34 @@ Solution crossover(const Solution &parent1, const Solution &parent2) {
         child.grid[i][0] = -1;
     }
 
-    // Randomly choose sections from parents
+    if(rand() % 100 < 70){
+        // Determine which parent goes first based on idx
+        const Solution &firstParent = (rand() % 2 == 0) ? parent1 : parent2;
+        const Solution &secondParent = (&firstParent == &parent1) ? parent2 : parent1;
+        
+        int midPoint = gridSize / 2;
+
+        // Fill the grid based on the split pattern
+        for (int i = 1; i < gridSize; ++i) {
+            for (int j = 1; j < gridSize; ++j) {
+                // Top-left quadrant gets values from first parent
+                if (i <= midPoint && j <= midPoint) {
+                    child.grid[i][j] = firstParent.grid[i][j];
+                }
+                // Rest of the grid gets values from second parent
+                else {
+                    child.grid[i][j] = secondParent.grid[i][j];
+                }
+            }
+        }
+        
+        return child;
+    }
+    
+
     for (int i = 1; i < gridSize; ++i) {
         for (int j = 1; j < gridSize; ++j) {
-            if (rand() % 100 < 70) {
+            if (rand() % 100 < 30) {
                 // 80% chance to copy directly from one of the parents
                 const Solution &selectedParent = (rand() % 2 == 0) ? parent1 : parent2;
                 child.grid[i][j] = selectedParent.grid[i][j];
@@ -209,11 +319,12 @@ Solution crossover(const Solution &parent1, const Solution &parent2) {
 
             // 20% chance or if the copied value was invalid, search for a valid value
             bool valueFound = false;
-            for (int attempts = 0; attempts < 10; ++attempts) { // Limit retries
+            for (int attempts = 0; attempts < gridSize * gridSize; ++attempts) { // Limit retries
                 const Solution &selectedParent = (rand() % 2 == 0) ? parent1 : parent2;
                 int r = 1 + (rand() % (gridSize - 1));
                 int c = 1 + (rand() % (gridSize - 1));
                 int value = selectedParent.grid[r][c];
+                //if(value == -1) continue;
 
                 if (isValidInChild(child, i, j, value)) {
                     child.grid[i][j] = value;
@@ -411,7 +522,7 @@ int main() {
     srand(time(0));
 
     // Define board size
-    int gridSize = 12;
+    int gridSize = 18;
 ;
     // Run evolutionary algorithm
     Solution best = evolutionaryAlgorithm(gridSize, 500, 3000);
