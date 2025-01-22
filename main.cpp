@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <fstream>
+#include <set>
 
 using namespace std;
 
@@ -28,26 +29,6 @@ struct Solution {
         return !(fitness < obj1.fitness);
     }
 };
-
-// Generate a random solution ensuring no duplicates in rows or columns
-/* Solution generateRandomSolution(int gridSize) {
-    Solution sol(gridSize);
-
-    for (int i = 0; i < gridSize; ++i) {
-        for (int j = 0; j < gridSize; ++j) {
-            if(i==0 || j==0){
-                sol.grid[i][j] = -1; // Unfillable cell
-            }
-            else if (rand() % 5 == 0) {
-                sol.grid[i][j] = -1; 
-            } else {
-                sol.grid[i][j] = rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
-            }
-        }
-    }
-
-    return sol;
-} */
 
 Solution generateRandomSolution(int gridSize) {
     Solution sol(gridSize);
@@ -133,7 +114,6 @@ int evaluateFitness(const Solution &sol) {
         // Check each row and column
         for (int isColumn = 0; isColumn <= 1; ++isColumn) {
             vector<int> sequence;
-            int consecutiveBlocks = 0;
             int numbersInGroup = 0;
             
             for (int j = 1; j < gridSize; ++j) {
@@ -142,6 +122,9 @@ int evaluateFitness(const Solution &sol) {
                 if (value == -1) {
                     // Reset number sequence when hitting a block
                     sequence.clear();
+                    if(numbersInGroup == 1){
+                        fitness -= 1;
+                    }
                     numbersInGroup = 0;
                 } else {
                     numbersInGroup++;
@@ -149,7 +132,7 @@ int evaluateFitness(const Solution &sol) {
                     // Check for repeating numbers in current sequence
                     for (int num : sequence) {
                         if (num == value) {
-                            fitness -= 1; // Punish repeated numbers
+                            fitness -= 2; // Punish repeated numbers
                             validBoard = false;
                             //cout << "repeated numbers " << num << endl;
                             break;
@@ -170,10 +153,10 @@ int evaluateFitness(const Solution &sol) {
                     depth first search through all indices, collect visited 
                     if visited smaller than all numbers, not reachable
                     start search again with number at smallest not visited index
-                    
+
                     */
                     // Check if group size exceeds 9
-                    if (numbersInGroup > 9 /*|| numbersInGroup == 1*/) {
+                    if (numbersInGroup > 9) {
                         fitness -= 1; // Punish groups larger than 9 or smaller than 2
                         validBoard = false;
                     }
@@ -282,71 +265,39 @@ Solution crossover(const Solution &parent1, const Solution &parent2) {
     int gridSize = parent1.grid.size();
     Solution child(gridSize);
 
-    // First row and column are always -1
-    for (int i = 0; i < gridSize; i++) {
-        child.grid[0][i] = -1;
-        child.grid[i][0] = -1;
-    }
+    // vertical or horizontal
+    const int orientation = (rand() % 2 == 0) ? 0 : 1;
+    const int percentageP1 = rand() % 100;
+    const int partP1 = gridSize * (percentageP1/100.0);
 
-    if(rand() % 100 < 70){
-        // Determine which parent goes first based on idx
-        const Solution &firstParent = (rand() % 2 == 0) ? parent1 : parent2;
-        const Solution &secondParent = (&firstParent == &parent1) ? parent2 : parent1;
-        
-        int midPoint = gridSize / 2;
+    //cout << partP1 << endl;
 
-        // Fill the grid based on the split pattern
-        for (int i = 1; i < gridSize; ++i) {
-            for (int j = 1; j < gridSize; ++j) {
-                // Top-left quadrant gets values from first parent
-                if (i <= midPoint && j <= midPoint) {
-                    child.grid[i][j] = firstParent.grid[i][j];
-                }
-                // Rest of the grid gets values from second parent
-                else {
-                    child.grid[i][j] = secondParent.grid[i][j];
+    if(orientation == 0){ //horizontal
+        for (int i = 0; i < gridSize; ++i) {
+            for (int j = 0; j < gridSize; ++j) {
+                if(i <= partP1){
+                    child.grid[i][j] = parent1.grid[i][j];
+                }else{
+                    child.grid[i][j] = parent2.grid[i][j];
                 }
             }
+
         }
-        
-        return child;
-    }
-    
-
-    for (int i = 1; i < gridSize; ++i) {
-        for (int j = 1; j < gridSize; ++j) {
-            if (rand() % 100 < 30) {
-                // 80% chance to copy directly from one of the parents
-                const Solution &selectedParent = (rand() % 2 == 0) ? parent1 : parent2;
-                child.grid[i][j] = selectedParent.grid[i][j];
-                continue; 
-            }
-
-            // 20% chance or if the copied value was invalid, search for a valid value
-            bool valueFound = false;
-            for (int attempts = 0; attempts < gridSize * gridSize; ++attempts) { // Limit retries
-                const Solution &selectedParent = (rand() % 2 == 0) ? parent1 : parent2;
-                int r = 1 + (rand() % (gridSize - 1));
-                int c = 1 + (rand() % (gridSize - 1));
-                int value = selectedParent.grid[r][c];
-                //if(value == -1) continue;
-
-                if (isValidInChild(child, i, j, value)) {
-                    child.grid[i][j] = value;
-                    valueFound = true;
-                    break;
+    }else{//vertical
+         for (int i = 0; i < gridSize; ++i) {
+            for (int j = 0; j < gridSize; ++j) {
+                if(j <= partP1){
+                    child.grid[i][j] = parent1.grid[i][j];
+                }else{
+                    child.grid[i][j] = parent2.grid[i][j];
                 }
             }
 
-            // Fallback: If no valid value found, copy directly from the same position in one of the parents
-            if (!valueFound) {
-                const Solution &selectedParent = (rand() % 2 == 0) ? parent1 : parent2;
-                child.grid[i][j] = selectedParent.grid[i][j];
-            }
         }
     }
-
+        
     return child;
+    
 }
 
 // Mutate a solution ensuring no duplicates in the row or column
@@ -355,21 +306,18 @@ void mutate(Solution &sol) {
     int r = 0;
     int c = 0;
 
-    while (r == 0 || c == 0)
-    {
-        r = rand() % gridSize;
-        c = rand() % gridSize;
-    }
+    const int mutations = (rand() % 100 / 100) * (gridSize-1)*(gridSize-1); //number of cells to mutate (perc * numOfCells)
+    std::set<std::pair<int, int>> coordinates;
     
-    int newValue;
-            
-    // if(rand() % 5 == 0) {
-    //     newValue = -1; 
-    // } else {
-        newValue = rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
-    //}
-
-    sol.grid[r][c] = newValue;    
+    for(int i = 0; i < mutations; i++){
+        while (coordinates.find({r, c}) != coordinates.end()){ // skip already used coordinates
+            r = rand() % (gridSize - 1) + 1;
+            c = rand() % (gridSize - 1) + 1;
+        }
+        coordinates.insert({r,c});
+        int newValue = rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
+        sol.grid[r][c] = newValue;    
+    }    
 }
 
 // Main evolutionary algorithm
@@ -383,45 +331,76 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
 
     Solution bestSolution = population[0];
     bestSolution.fitness = evaluateFitness(bestSolution);
+
+    for (auto &sol : population) {
+        sol.fitness = evaluateFitness(sol);
+        cout << "parent fitness " << sol.fitness << endl;
+            
+        if (sol.fitness > bestSolution.fitness) {
+            bestSolution = sol; // save to file?
+        }
+    }
+
     int gen = 0;
 
-    while (bestSolution.fitness < 1000 && gen < generations) { // do not check for fitness, stop if valid board generated
-        // Evaluate fitness
+    while (gen < generations) { // do not check for fitness, stop if valid board generated
+
         for (auto &sol : population) {
-            sol.fitness = evaluateFitness(sol);
+            sol.fitness = evaluateFitness(sol);   
             if (sol.fitness > bestSolution.fitness) {
                 bestSolution = sol; // save to file?
+                cout << "New best solution" << endl;
             }
         }
+        if(population[0].fitness > bestSolution.fitness){
+            bestSolution = population[0];
+            
+        }
+
+        cout << "Generation " << gen << " best fitness: " << bestSolution.fitness << endl;
         // extra validity check for best board, stop if valid
         // if new best fitness worse than last, replace 10% of generated kids with best from last gen
 
         // Selection
-        vector<Solution> newPopulation;
+        vector<Solution> children;
         // iterate through population: parent1 = i, parent2 = random
         // delete worst 5% boards
         // better fitness means more likely to be parent
 
         for (int i = 0; i < populationSize; ++i) {
-            int idx1 = rand() % populationSize;
+            //int idx1 = rand() % populationSize;
             int idx2 = rand() % populationSize;
                     
-            Solution &parent1 = population[idx1];
-            Solution &parent2 = population[idx2];
+            Solution &parent1 = population[i];
+            Solution &parent2 = population[idx2]; //prefer parents with better fitness?
             
-
             Solution child = crossover(parent1, parent2); // horizontal/vertical split, x% of first parent, rest is second parent
 
-            if (rand() % 100 < 40) { // Mutation chance 40%
+            if (rand() % 100 < 60) { // Mutation chance 60%
                 mutate(child); // goal-oriented mutation (x% empty, y% number), gridsize/x cells mutate
             }
 
-            newPopulation.push_back(child);
+            child.fitness = evaluateFitness(child);
+            //cout << "child fitness " << child.fitness << endl;
+            // check if perfect solution has been created
+            children.push_back(child);
         }
 
-        population = newPopulation;
+        // new vector of parents + children
+        vector<Solution>* totalPopulation = new vector<Solution>;
 
-        cout << "Generation " << gen << " best fitness: " << bestSolution.fitness << endl;
+        totalPopulation->reserve(population.size() + children.size());  // Optional but improves performance
+        totalPopulation->insert(totalPopulation->end(), population.begin(), population.end());
+        totalPopulation->insert(totalPopulation->end(), children.begin(), children.end()); 
+
+        sort(totalPopulation->begin(), totalPopulation->end(), [](const Solution& a, const Solution& b) {
+                return a.fitness > b.fitness;
+            }); 
+        
+        population.clear();
+        population = vector<Solution>(totalPopulation->begin(), totalPopulation->begin() + 500);
+
+        delete totalPopulation;
         gen++;
 
         // fitness check
@@ -525,10 +504,10 @@ int main() {
     srand(time(0));
 
     // Define board size
-    int gridSize = 18;
+    int gridSize = 10;
 ;
     // Run evolutionary algorithm
-    Solution best = evolutionaryAlgorithm(gridSize, 500, 3000);
+    Solution best = evolutionaryAlgorithm(gridSize, 500, 10000);
 
     // Print the best solution
     for (const auto &row : best.grid) {
