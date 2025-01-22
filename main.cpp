@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <fstream>
 #include <set>
+#include <queue>
 
 using namespace std;
 
@@ -95,11 +96,67 @@ Solution generateRandomSolution(int gridSize) {
     return sol;
 }
 
+int countConnectedGroups(const Solution &sol) {
+    int rows = sol.grid.size();
+    int cols = sol.grid[0].size();
+
+    // Directions for vertical and horizontal movement
+    vector<pair<int, int>> directions = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+
+    // Visited set to track visited cells
+    vector<vector<bool>> visited(rows, vector<bool>(cols, false));
+
+    // BFS function to explore the connected component
+    auto bfs = [&](int startX, int startY) {
+        queue<pair<int, int>> q;
+        q.push({startX, startY});
+        visited[startX][startY] = true;
+
+        while (!q.empty()) {
+            auto [x, y] = q.front();
+            q.pop();
+
+            // Explore all 4 possible neighbors (up, down, left, right)
+            for (auto& dir : directions) {
+                int newX = x + dir.first;
+                int newY = y + dir.second;
+
+                if (newX >= 0 && newX < rows && newY >= 0 && newY < cols &&
+                    sol.grid[newX][newY] >= 1 && sol.grid[newX][newY] <= 9 && !visited[newX][newY]) {
+                    visited[newX][newY] = true;
+                    q.push({newX, newY});
+                    }
+            }
+        }
+    };
+
+    int groupCount = 0;
+
+    // Iterate through the grid and start BFS whenever we find an unvisited number
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+            // Start a BFS if the current cell contains a number (1-9) and hasn't been visited
+            if (sol.grid[i][j] >= 1 && sol.grid[i][j] <= 9 && !visited[i][j]) {
+                bfs(i, j); // Explore the connected component starting from (i, j)
+                ++groupCount; // Increment the connected group count
+            }
+        }
+    }
+
+    return groupCount;
+}
 
 int evaluateFitness(const Solution &sol) {
     int gridSize = sol.grid.size();
     int fitness = 0;
     bool validBoard = true;
+    int punishmentLargeGroups = 1;
+    int punishmentRepetition = 2;
+    int rewardCorrectLine = 60;
+    int rewardCorrectBoard = 1000;
+    int rewardSingleGroup = 100;
+    int punishmentPerGroup = 10;
+
     /*
       4 4
     4 1 3 
@@ -132,7 +189,7 @@ int evaluateFitness(const Solution &sol) {
                     // Check for repeating numbers in current sequence
                     for (int num : sequence) {
                         if (num == value) {
-                            fitness -= 2; // Punish repeated numbers
+                            fitness -= punishmentRepetition; // Punish repeated numbers
                             validBoard = false;
                             //cout << "repeated numbers " << num << endl;
                             break;
@@ -156,7 +213,7 @@ int evaluateFitness(const Solution &sol) {
                     */
                     // Check if group size exceeds 9
                     if (numbersInGroup > 9) {
-                        fitness -= 1; // Punish groups larger than 9 or smaller than 2
+                        fitness -= punishmentLargeGroups; // Punish groups larger than 9 or smaller than 2
                         validBoard = false;
                     }
                 }
@@ -164,13 +221,21 @@ int evaluateFitness(const Solution &sol) {
             
             // Reward if the line meets all criteria
             if (fitness > 0) {
-                fitness += 60;
+                fitness += rewardCorrectLine;
             }
         }
     }
 
+    // Check for connected groups
+    int connectedGroups = countConnectedGroups(sol);
+    if (connectedGroups == 1) {
+        fitness += rewardSingleGroup;
+    } else {
+        fitness -= punishmentPerGroup * (connectedGroups - 1);
+    }
+
     if(validBoard){
-        fitness += 1000;
+        fitness += rewardCorrectBoard;
     }
 
     return fitness;
@@ -333,7 +398,6 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
 
     for (auto &sol : population) {
         sol.fitness = evaluateFitness(sol);
-        cout << "parent fitness " << sol.fitness << endl;
             
         if (sol.fitness > bestSolution.fitness) {
             bestSolution = sol; // save to file?
@@ -344,16 +408,8 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
 
     while (gen < generations) { // do not check for fitness, stop if valid board generated
 
-        for (auto &sol : population) {
-            sol.fitness = evaluateFitness(sol);   
-            if (sol.fitness > bestSolution.fitness) {
-                bestSolution = sol; // save to file?
-                cout << "New best solution" << endl;
-            }
-        }
         if(population[0].fitness > bestSolution.fitness){
-            bestSolution = population[0];
-            
+            bestSolution = population[0];            
         }
 
         cout << "Generation " << gen << " best fitness: " << bestSolution.fitness << endl;
