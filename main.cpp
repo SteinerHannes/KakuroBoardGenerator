@@ -232,6 +232,7 @@ int evaluateFitness(const Solution &sol) {
         fitness += rewardSingleGroup;
     } else {
         fitness -= punishmentPerGroup * (connectedGroups - 1);
+        validBoard = false;
     }
 
     if(validBoard){
