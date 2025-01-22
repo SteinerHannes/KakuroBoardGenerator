@@ -119,6 +119,14 @@ int evaluateFitness(const Solution &sol) {
     int gridSize = sol.grid.size();
     int fitness = 0;
     bool validBoard = true;
+    /*
+      4 4
+    4 1 3 
+    4 3 1 
+
+    find pairs, +1 for each, scale rewards 
+    
+    */
 
     // Check rows and columns
     for (int i = 1; i < gridSize; ++i) {
@@ -132,28 +140,16 @@ int evaluateFitness(const Solution &sol) {
                 int value = isColumn ? sol.grid[j][i] : sol.grid[i][j];
                 
                 if (value == -1) {
-                    // Check for too many consecutive blocks
-                    consecutiveBlocks++;
-                    if (consecutiveBlocks > 5) {
-                        fitness -= 50; // Punish too many consecutive blocks
-                       
-                    }
-                    
                     // Reset number sequence when hitting a block
                     sequence.clear();
                     numbersInGroup = 0;
                 } else {
-                    consecutiveBlocks = 0;
                     numbersInGroup++;
-                    //cout << "Cons blocks 0" << endl;
-                
-                    
+                  
                     // Check for repeating numbers in current sequence
-                    bool foundRepeat = false;
                     for (int num : sequence) {
                         if (num == value) {
-                            fitness -= 60; // Punish repeated numbers
-                            foundRepeat = true;
+                            fitness -= 1; // Punish repeated numbers
                             validBoard = false;
                             //cout << "repeated numbers " << num << endl;
                             break;
@@ -161,15 +157,24 @@ int evaluateFitness(const Solution &sol) {
                         
                     }
                     
-                    // if (!foundRepeat) {
-                    //     fitness += 10; // Reward unique numbers
-                    // }
-                    
                     sequence.push_back(value);
+
+                    //check all directions for neighbors of value, every val needs at least one number neighbor (up, down, left, right)
+                    /*  
+                    0 0 0 0 0 0 0 0 0 0 0
+                    0 0 x x x x x x x x x 
+                    0 x x x x x x x x x x
+
+                    iterate through board + save indices of numbers
+                    get first number in board 
+                    depth first search through all indices, collect visited 
+                    if visited smaller than all numbers, not reachable
+                    start search again with number at smallest not visited index
                     
+                    */
                     // Check if group size exceeds 9
                     if (numbersInGroup > 9 /*|| numbersInGroup == 1*/) {
-                        fitness -= 60; // Punish groups larger than 9 or smaller than 2
+                        fitness -= 1; // Punish groups larger than 9 or smaller than 2
                         validBoard = false;
                     }
                 }
@@ -380,26 +385,22 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
     bestSolution.fitness = evaluateFitness(bestSolution);
     int gen = 0;
 
-    while (bestSolution.fitness < 1000 && gen < generations) {
+    while (bestSolution.fitness < 1000 && gen < generations) { // do not check for fitness, stop if valid board generated
         // Evaluate fitness
         for (auto &sol : population) {
             sol.fitness = evaluateFitness(sol);
             if (sol.fitness > bestSolution.fitness) {
-                bestSolution = sol;
-                
-                //     for (const auto &row : bestSolution.grid) {
-                //         for (int cell : row) {
-                //             cout << (cell == -1 ? "X" : to_string(cell)) << " ";
-                //         }
-                //         cout << endl;
-                //     }
-                // cout << endl;
+                bestSolution = sol; // save to file?
             }
         }
+        // extra validity check for best board, stop if valid
+        // if new best fitness worse than last, replace 10% of generated kids with best from last gen
 
         // Selection
         vector<Solution> newPopulation;
-        
+        // iterate through population: parent1 = i, parent2 = random
+        // delete worst 5% boards
+        // better fitness means more likely to be parent
 
         for (int i = 0; i < populationSize; ++i) {
             int idx1 = rand() % populationSize;
@@ -409,10 +410,10 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
             Solution &parent2 = population[idx2];
             
 
-            Solution child = crossover(parent1, parent2);
+            Solution child = crossover(parent1, parent2); // horizontal/vertical split, x% of first parent, rest is second parent
 
-            if (rand() % 100 < 40) { // Mutation chance 10%
-                mutate(child);
+            if (rand() % 100 < 40) { // Mutation chance 40%
+                mutate(child); // goal-oriented mutation (x% empty, y% number), gridsize/x cells mutate
             }
 
             newPopulation.push_back(child);
@@ -422,6 +423,8 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
 
         cout << "Generation " << gen << " best fitness: " << bestSolution.fitness << endl;
         gen++;
+
+        // fitness check
     }
 
     return bestSolution;
