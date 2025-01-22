@@ -142,7 +142,6 @@ int evaluateFitness(const Solution &sol) {
                     
                     sequence.push_back(value);
 
-                    //check all directions for neighbors of value, every val needs at least one number neighbor (up, down, left, right)
                     /*  
                     0 0 0 0 0 0 0 0 0 0 0
                     0 0 x x x x x x x x x 
@@ -359,34 +358,39 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
 
         cout << "Generation " << gen << " best fitness: " << bestSolution.fitness << endl;
         // extra validity check for best board, stop if valid
-        // if new best fitness worse than last, replace 10% of generated kids with best from last gen
 
         // Selection
         vector<Solution> children;
         // iterate through population: parent1 = i, parent2 = random
-        // delete worst 5% boards
         // better fitness means more likely to be parent
 
         for (int i = 0; i < populationSize; ++i) {
-            //int idx1 = rand() % populationSize;
-            int idx2 = rand() % populationSize;
-                    
-            Solution &parent1 = population[i];
-            Solution &parent2 = population[idx2]; //prefer parents with better fitness?
             
-            Solution child = crossover(parent1, parent2); // horizontal/vertical split, x% of first parent, rest is second parent
+            int idx2 = 0;
+
+            if(rand() % 2 == 0){
+                idx2 = rand() % populationSize;
+            }
+            else{
+                idx2 = rand() % (populationSize/2);
+            }
+        
+            Solution &parent1 = population[i];
+            Solution &parent2 = population[idx2];
+            
+            Solution child = crossover(parent1, parent2);
 
             if (rand() % 100 < 60) { // Mutation chance 60%
-                mutate(child); // goal-oriented mutation (x% empty, y% number), gridsize/x cells mutate
+                mutate(child); 
             }
 
             child.fitness = evaluateFitness(child);
-            //cout << "child fitness " << child.fitness << endl;
-            // check if perfect solution has been created
+
+            // check if perfect solution has been created, then return
+
             children.push_back(child);
         }
 
-        // new vector of parents + children
         vector<Solution>* totalPopulation = new vector<Solution>;
 
         totalPopulation->reserve(population.size() + children.size());  // Optional but improves performance
@@ -505,9 +509,8 @@ int main() {
 
     // Define board size
     int gridSize = 10;
-;
     // Run evolutionary algorithm
-    Solution best = evolutionaryAlgorithm(gridSize, 500, 10000);
+    Solution best = evolutionaryAlgorithm(gridSize, 500, 3000);
 
     // Print the best solution
     for (const auto &row : best.grid) {
