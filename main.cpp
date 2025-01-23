@@ -459,7 +459,7 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
             }); 
         
         population.clear();
-        population = vector<Solution>(totalPopulation->begin(), totalPopulation->begin() + 500);
+        population = vector<Solution>(totalPopulation->begin(), totalPopulation->begin() + populationSize);
 
         delete totalPopulation;
         gen++;
