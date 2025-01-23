@@ -58,41 +58,41 @@ Solution generateRandomSolution(int gridSize) {
     }
     
     // Second pass: fix isolated numbers
-    bool needsFixing;
-    do {
-        needsFixing = false;
-        for (int i = 1; i < gridSize; ++i) {
-            for (int j = 1; j < gridSize; ++j) {
-                if (sol.grid[i][j] != -1) {
-                    // Check if number is isolated
-                    bool isIsolated = true;
-                    // Check adjacent cells (not diagonal)
-                    if ((i > 0 && sol.grid[i-1][j] != -1) ||
-                        (i < gridSize-1 && sol.grid[i+1][j] != -1) ||
-                        (j > 0 && sol.grid[i][j-1] != -1) ||
-                        (j < gridSize-1 && sol.grid[i][j+1] != -1)) {
-                        isIsolated = false;
-                    }
+    // bool needsFixing;
+    // do {
+    //     needsFixing = false;
+    //     for (int i = 1; i < gridSize; ++i) {
+    //         for (int j = 1; j < gridSize; ++j) {
+    //             if (sol.grid[i][j] != -1) {
+    //                 // Check if number is isolated
+    //                 bool isIsolated = true;
+    //                 // Check adjacent cells (not diagonal)
+    //                 if ((i > 0 && sol.grid[i-1][j] != -1) ||
+    //                     (i < gridSize-1 && sol.grid[i+1][j] != -1) ||
+    //                     (j > 0 && sol.grid[i][j-1] != -1) ||
+    //                     (j < gridSize-1 && sol.grid[i][j+1] != -1)) {
+    //                     isIsolated = false;
+    //                 }
                     
-                    if (isIsolated) {
-                        // Fix isolation by randomly making one adjacent cell a number
-                        vector<pair<int,int>> adjacent;
-                        if (i > 0) adjacent.push_back({i-1, j});
-                        if (i < gridSize-1) adjacent.push_back({i+1, j});
-                        if (j > 0) adjacent.push_back({i, j-1});
-                        if (j < gridSize-1) adjacent.push_back({i, j+1});
+    //                 if (isIsolated) {
+    //                     // Fix isolation by randomly making one adjacent cell a number
+    //                     vector<pair<int,int>> adjacent;
+    //                     if (i > 0) adjacent.push_back({i-1, j});
+    //                     if (i < gridSize-1) adjacent.push_back({i+1, j});
+    //                     if (j > 0) adjacent.push_back({i, j-1});
+    //                     if (j < gridSize-1) adjacent.push_back({i, j+1});
                         
-                        if (!adjacent.empty()) {
-                            int idx = rand() % adjacent.size();
-                            sol.grid[adjacent[idx].first][adjacent[idx].second] = 
-                                rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
-                            needsFixing = true;
-                        }
-                    }
-                }
-            }
-        }
-    } while (needsFixing);
+    //                     if (!adjacent.empty()) {
+    //                         int idx = rand() % adjacent.size();
+    //                         sol.grid[adjacent[idx].first][adjacent[idx].second] = 
+    //                             rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
+    //                         needsFixing = true;
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // } while (needsFixing);
     return sol;
 }
 
@@ -146,6 +146,46 @@ int countConnectedGroups(const Solution &sol) {
     return groupCount;
 }
 
+int countNumbersWithoutNeighbours(const Solution &sol) {
+    int rows = sol.grid.size();
+    if (rows == 0) return 0;
+    int cols = sol.grid[0].size();
+
+    int count = 0;
+
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+            if (sol.grid[i][j] > 0) { // Only consider numbers (1-9)
+                bool hasHorizontalNeighbor = false;
+                bool hasVerticalNeighbor = false;
+
+                // Check left and right neighbors for horizontal
+                if (j > 0 && sol.grid[i][j - 1] > 0) {
+                    hasHorizontalNeighbor = true;
+                }
+                if (j < cols - 1 && sol.grid[i][j + 1] > 0) {
+                    hasHorizontalNeighbor = true;
+                }
+
+                // Check top and bottom neighbors for vertical
+                if (i > 0 && sol.grid[i - 1][j] > 0) {
+                    hasVerticalNeighbor = true;
+                }
+                if (i < rows - 1 && sol.grid[i + 1][j] > 0) {
+                    hasVerticalNeighbor = true;
+                }
+
+                // If either condition fails, increment the count
+                if (!hasHorizontalNeighbor || !hasVerticalNeighbor) {
+                    ++count;
+                }
+            }
+        }
+    }
+
+    return count;
+}
+
 int evaluateFitness(const Solution &sol) {
     int gridSize = sol.grid.size();
     int fitness = 0;
@@ -156,6 +196,8 @@ int evaluateFitness(const Solution &sol) {
     int rewardCorrectBoard = 1000;
     int rewardSingleGroup = 100;
     int punishmentPerGroup = 10;
+    int rewardNoIsolatedNumbers = 100;
+    int punishmentIsolatedNumbers = 10;
 
     /*
       4 4
@@ -232,6 +274,15 @@ int evaluateFitness(const Solution &sol) {
         fitness += rewardSingleGroup;
     } else {
         fitness -= punishmentPerGroup * (connectedGroups - 1);
+        validBoard = false;
+    }
+
+    // Check for numbers without horizontal or vertical neighbors
+    int isolatedNumbers = countNumbersWithoutNeighbours(sol);
+    if(isolatedNumbers == 0){
+        fitness += rewardNoIsolatedNumbers;
+    }else{
+        fitness -= punishmentIsolatedNumbers * isolatedNumbers;
         validBoard = false;
     }
 
