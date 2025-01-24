@@ -18,16 +18,16 @@ constexpr int populationSizeFactor = 100;
 constexpr int nGenerationsFactor = 1000;
 
 constexpr int punishmentLargeGroups = 1;
-constexpr int punishmentRepetition = 2;
+constexpr int punishmentRepetition = 3;
 constexpr int rewardCorrectBoard = 100;
-constexpr int rewardSingleGroup = 8;
+constexpr int rewardSingleGroup = 20;
 constexpr int punishmentPerGroup = 2;
 constexpr int rewardNoIsolatedNumbers = 10;
 constexpr int punishmentIsolatedNumbers = 10;
 constexpr int punishmentThreeByThree = 10;
 constexpr int punishmentPairs = 4;
 constexpr int punishmentNotSymmetric = 1;
-constexpr int punishmentUnusedRowOrColumn = 4;
+constexpr int punishmentUnusedRowOrColumn = 10;
 
 constexpr int MIN_DIGIT = 1;
 constexpr int MAX_DIGIT = 9;
@@ -204,12 +204,6 @@ int evaluateFitness(const Solution &sol) {
                     
                     sequence.push_back(value);
 
-                    // Check if group size exceeds 9
-                    if (numbersInGroup > 9) {
-                        fitness -= punishmentLargeGroups; // Punish groups larger than 9 or smaller than 2
-                        validBoard = false;
-                    }
-
                     auto punishmentFactor = 0.0;
 
                     if (numbersInGroup < 4) {
@@ -370,7 +364,7 @@ void mutate(Solution &sol) {
 }
 
 // Main evolutionary algorithm
-Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations) {
+Solution evolutionaryAlgorithm(const int gridSize, const int populationSize, const int generations) {
     std::vector<Solution> population;
     population.reserve(populationSize);
 
@@ -390,7 +384,7 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
     }
 
     // Top 10% of population retained as elites
-    int eliteCount = std::max(1, populationSize / 10);
+    const int eliteCount = std::max(1, populationSize / 10);
     int gen = 0;
     int bestSolutionGeneration = 0;
 
@@ -431,8 +425,8 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
             const auto it1 = std::lower_bound(cumulativeProbabilities.begin(), cumulativeProbabilities.end(), rand1);
             const auto it2 = std::lower_bound(cumulativeProbabilities.begin(), cumulativeProbabilities.end(), rand2);
 
-            const int parent1Idx = std::distance(cumulativeProbabilities.begin(), it1);
-            const int parent2Idx = std::distance(cumulativeProbabilities.begin(), it2);
+            const int parent1Idx = (int)std::distance(cumulativeProbabilities.begin(), it1);
+            const int parent2Idx = (int)std::distance(cumulativeProbabilities.begin(), it2);
 
             Solution child = crossover(population[parent1Idx], population[parent2Idx]);
 
