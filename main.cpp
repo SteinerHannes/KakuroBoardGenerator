@@ -10,6 +10,11 @@
 #include <set>
 #include <queue>
 
+const bool debugMutations = false;
+const bool debubScore = true;
+
+const auto gridSizes = {6}; //{ 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 };
+
 using namespace std;
 
 const int MIN_DIGIT = 1;
@@ -192,12 +197,13 @@ int evaluateFitness(const Solution &sol) {
     bool validBoard = true;
     int punishmentLargeGroups = 1;
     int punishmentRepetition = 2;
-    int rewardCorrectLine = 60;
     int rewardCorrectBoard = 1000;
     int rewardSingleGroup = 100;
     int punishmentPerGroup = 10;
     int rewardNoIsolatedNumbers = 100;
     int punishmentIsolatedNumbers = 10;
+    int punishmentThreeByThree = 10;
+    int punishmentPairs = 1;
 
     /*
       4 4
@@ -258,12 +264,27 @@ int evaluateFitness(const Solution &sol) {
                         fitness -= punishmentLargeGroups; // Punish groups larger than 9 or smaller than 2
                         validBoard = false;
                     }
+
+                    auto punishmentFactor = 0.0;
+
+                    if (numbersInGroup < 6) {
+                        punishmentFactor = 0;
+                    } else if (numbersInGroup == 6) {
+                        punishmentFactor = 1;
+                    } else if (numbersInGroup == 7) {
+                        punishmentFactor = 2;
+                    } else if (numbersInGroup == 8) {
+                        punishmentFactor = 4;
+                    } else if (numbersInGroup == 9) {
+                        punishmentFactor = 8;
+                    } else {
+                        punishmentFactor = 16;
+                    }
+                    if (punishmentFactor > 0) {
+                        fitness -= (int)(punishmentLargeGroups * punishmentFactor);
+                        validBoard = false;
+                    }
                 }
-            }
-            
-            // Reward if the line meets all criteria
-            if (fitness > 0) {
-                fitness += rewardCorrectLine;
             }
         }
     }
@@ -284,6 +305,28 @@ int evaluateFitness(const Solution &sol) {
     }else{
         fitness -= punishmentIsolatedNumbers * isolatedNumbers;
         validBoard = false;
+    }
+
+    // Check if there are 3x3 squares. If so punish for each
+    for (int i = 1; i < gridSize; ++i) {
+        for (int j = 1; j < gridSize; ++j) {
+            if (sol.grid[i][j] != -1 && sol.grid[i-1][j] != -1 && sol.grid[i][j-1] != -1 && sol.grid[i-1][j-1] != -1) {
+                fitness -= punishmentThreeByThree;
+                validBoard = false;
+            }
+        }
+    }
+
+    // Check for swappable pairs
+    for (int i = 1; i < gridSize; ++i) {
+        for (int j = 1; j < gridSize; ++j) {
+            if (sol.grid[i][j] != -1 && sol.grid[i-1][j] != -1 && sol.grid[i][j-1] != -1 && sol.grid[i-1][j-1] != -1) {
+                if(sol.grid[i][j] == sol.grid[i-1][j] || sol.grid[i][j] == sol.grid[i][j-1] || sol.grid[i][j] == sol.grid[i-1][j-1]){
+                    fitness -= punishmentPairs;
+                    validBoard = false;
+                }
+            }
+        }
     }
 
     if(validBoard){
@@ -419,10 +462,15 @@ Solution crossover(const Solution &parent1, const Solution &parent2) {
 // Mutate a solution ensuring no duplicates in the row or column
 void mutate(Solution &sol) {
     int gridSize = sol.grid.size();
-    int r = 0;
-    int c = 0;
+    int r = rand() % (gridSize - 1) + 1;
+    int c = rand() % (gridSize - 1) + 1;
 
-    const int mutations = (rand() % 100 / 100) * (gridSize-1)*(gridSize-1); //number of cells to mutate (perc * numOfCells)
+    //number of cells to mutate (max 5%  of the board)
+    const int mutations = rand() % (gridSize * gridSize / 20) + 1;
+    if (debugMutations) {
+        cout << "mutations: " << mutations << endl;
+    }
+
     std::set<std::pair<int, int>> coordinates;
     
     for(int i = 0; i < mutations; i++){
@@ -431,7 +479,11 @@ void mutate(Solution &sol) {
             c = rand() % (gridSize - 1) + 1;
         }
         coordinates.insert({r,c});
-        int newValue = rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
+        // Create new value (-1) or random number (1-9) with chance 20%
+        int newValue = (rand() % 10 < 2) ? -1 : rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
+        if (debugMutations) {
+            cout << "mutating " << r << " " << c << " to " << newValue << endl;
+        }
         sol.grid[r][c] = newValue;    
     }    
 }
@@ -464,7 +516,10 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
             bestSolution = population[0];            
         }
 
-        cout << "Generation " << gen << " best fitness: " << bestSolution.fitness << endl;
+        if (debubScore) {
+            cout << "Generation " << gen << " best fitness: " << bestSolution.fitness << " average fitness: " << population[populationSize/2].fitness << endl;
+        }
+
         // extra validity check for best board, stop if valid
 
         // Selection
@@ -615,24 +670,26 @@ void saveEmptyBoardToFile(const vector<vector<string>> &emptyBoard, const string
 int main() {
     srand(time(0));
 
-    // Define board size
-    int gridSize = 10;
-    // Run evolutionary algorithm
-    Solution best = evolutionaryAlgorithm(gridSize, 500, 3000);
+    for (auto size: gridSizes) {
+        auto populationSize = size * 10;
+        auto generations = size * 100;
+        // Run evolutionary algorithm
+        Solution best = evolutionaryAlgorithm(size, populationSize , generations);
 
-    // Print the best solution
-    for (const auto &row : best.grid) {
-        for (int cell : row) {
-            cout << (cell == -1 ? "X" : to_string(cell)) << " ";
+        // Print the best solution
+        for (const auto &row : best.grid) {
+            for (int cell : row) {
+                cout << (cell == -1 ? "X" : to_string(cell)) << " ";
+            }
+            cout << endl;
         }
-        cout << endl;
+
+        // Derive empty board
+        vector<vector<string>> emptyBoard = deriveEmptyBoard(best.grid);
+
+        // Print empty board
+        printEmptyBoard(emptyBoard);
     }
-
-    // Derive empty board
-    vector<vector<string>> emptyBoard = deriveEmptyBoard(best.grid);
-
-    // Print empty board
-    printEmptyBoard(emptyBoard);
 
     return 0;
 }
