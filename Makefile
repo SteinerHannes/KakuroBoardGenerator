@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -std=c++17 -Wall -O2
+CFLAGS = -std=c++17 -Wall -O3
 TARGET = kakuro_generator
 SRC = main.cpp
 
@@ -8,7 +8,7 @@ SRC = main.cpp
 all: $(TARGET)
 
 $(TARGET): $(SRC)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SRC) -O3
+	$(CC) $(CFLAGS) -o $(TARGET) $(SRC)
 
 clean:
 	rm -f $(TARGET)
