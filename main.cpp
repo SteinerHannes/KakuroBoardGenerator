@@ -3,49 +3,47 @@
 #include <cstdlib>
 #include <ctime>
 #include <unordered_set>
-#include <utility>
 #include <algorithm>
 #include <iomanip>
 #include <fstream>
 #include <set>
 #include <queue>
 
-const bool debugMutations = false;
-const bool debubScore = false;
-const bool debugOutput = true;
+constexpr bool debugMutations = false;
+constexpr bool debubScore = false;
+constexpr bool debugOutput = true;
 
-const auto gridSizes = { 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 };
+constexpr auto gridSizes = { 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 };
 constexpr int populationSizeFactor = 100;
 constexpr int nGenerationsFactor = 1000;
 
 constexpr int punishmentLargeGroups = 1;
-const int punishmentRepetition = 2;
-const int rewardCorrectBoard = 1000;
-const int rewardSingleGroup = 100;
-const int punishmentPerGroup = 10;
-const int rewardNoIsolatedNumbers = 100;
-const int punishmentIsolatedNumbers = 10;
-const int punishmentThreeByThree = 10;
-const int punishmentPairs = 1;
-const int punishmentNotSymmetric = 1;
-const int punishmentUnusedRowOrColumn = 1;
+constexpr int punishmentRepetition = 2;
+constexpr int rewardCorrectBoard = 1000;
+constexpr int rewardSingleGroup = 100;
+constexpr int punishmentPerGroup = 10;
+constexpr int rewardNoIsolatedNumbers = 100;
+constexpr int punishmentIsolatedNumbers = 10;
+constexpr int punishmentThreeByThree = 10;
+constexpr int punishmentPairs = 1;
+constexpr int punishmentNotSymmetric = 1;
+constexpr int punishmentUnusedRowOrColumn = 1;
 
-const int MIN_DIGIT = 1;
-const int MAX_DIGIT = 9;
+constexpr int MIN_DIGIT = 1;
+constexpr int MAX_DIGIT = 9;
 
 struct Solution {
     std::vector<std::vector<int>> grid; // 2D grid representing the solution
     int fitness;
 
-    Solution(int gridSize) {
+    explicit Solution(const int gridSize) {
         grid = std::vector<std::vector<int>>(gridSize, std::vector<int>(gridSize, 0));
         fitness = 0;
     }
 
-     // Overloading < operator
     bool operator<(const Solution& obj1) const
     {
-        return !(fitness < obj1.fitness);
+        return fitness >= obj1.fitness;
     }
 };
 
@@ -76,11 +74,11 @@ Solution generateRandomSolution(int gridSize) {
 }
 
 int countConnectedGroups(const Solution &sol) {
-    int rows = sol.grid.size();
-    int cols = sol.grid[0].size();
+    const int rows = (int)sol.grid.size();
+    const int cols = (int)sol.grid[0].size();
 
     // Directions for vertical and horizontal movement
-    std::vector<std::pair<int, int>> directions = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+    const std::vector<std::pair<int, int>> directions = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
 
     // Visited set to track visited cells
     std::vector<std::vector<bool>> visited(rows, std::vector<bool>(cols, false));
@@ -126,9 +124,9 @@ int countConnectedGroups(const Solution &sol) {
 }
 
 int countNumbersWithoutNeighbours(const Solution &sol) {
-    int rows = sol.grid.size();
+    const int rows = (int)sol.grid.size();
     if (rows == 0) return 0;
-    int cols = sol.grid[0].size();
+    const int cols = (int)sol.grid[0].size();
 
     int count = 0;
 
@@ -166,18 +164,10 @@ int countNumbersWithoutNeighbours(const Solution &sol) {
 }
 
 int evaluateFitness(const Solution &sol) {
-    int gridSize = sol.grid.size();
+    const int gridSize = (int)sol.grid.size();
     int fitness = 0;
     bool validBoard = true;
 
-    /*
-      4 4
-    4 1 3 
-    4 3 1 
-
-    find pairs, +1 for each, scale rewards 
-    
-    */
 
     // Check rows and columns
     for (int i = 1; i < gridSize; ++i) {
@@ -214,18 +204,6 @@ int evaluateFitness(const Solution &sol) {
                     
                     sequence.push_back(value);
 
-                    /*  
-                    0 0 0 0 0 0 0 0 0 0 0
-                    0 0 x x x x x x x x x 
-                    0 x x x x x x x x x x
-
-                    iterate through board + save indices of numbers
-                    get first number in board 
-                    depth first search through all indices, collect visited 
-                    if visited smaller than all numbers, not reachable
-                    start search again with number at smallest not visited index
-
-                    */
                     // Check if group size exceeds 9
                     if (numbersInGroup > 9) {
                         fitness -= punishmentLargeGroups; // Punish groups larger than 9 or smaller than 2
@@ -326,92 +304,8 @@ int evaluateFitness(const Solution &sol) {
     return fitness;
 }
 
-// Helper function to check if a value is unique in a row and column
-bool isUnique(const Solution &sol, int row, int col, int value) {
-     int gridSize = sol.grid.size();
-
-    // Check row for duplicates within contiguous groups
-    std::unordered_set<int> rowSet;
-    for (int j = 0; j < gridSize; ++j) {
-        if (sol.grid[row][j] == -1) {
-            rowSet.clear(); // Reset when encountering a block
-        } else if (sol.grid[row][j] == value && j != col) {
-            return false; // Duplicate found in the same group
-        } else {
-            rowSet.insert(sol.grid[row][j]);
-        }
-    }
-
-    // Check column for duplicates within contiguous groups
-    std::unordered_set<int> colSet;
-    for (int i = 0; i < gridSize; ++i) {
-        if (sol.grid[i][col] == -1) {
-            colSet.clear(); // Reset when encountering a block
-        } else if (sol.grid[i][col] == value && i != row) {
-            return false; // Duplicate found in the same group
-        } else {
-            colSet.insert(sol.grid[i][col]);
-        }
-    }
-
-    return true;
-}
-
-bool isValidInChild(const Solution &child, int row, int col, int value) {
-    int gridSize = child.grid.size();
-
-     // If trying to place -1, check for consecutive numbers rule
-    if (value == -1) {
-        // Only need to check if previous cell exists and contains a number
-        if (col > 0 && child.grid[row][col-1] != -1) {
-            // Count consecutive numbers before this position
-            int consecutiveCount = 0;
-            int checkCol = col - 1;
-            
-            // Keep going left until we hit a -1 or the start of the row
-            while (checkCol >= 0 && child.grid[row][checkCol] != -1) {
-                consecutiveCount++;
-                checkCol--;
-            }
-            
-            // If only one number is found, -1 cannot be placed
-            if (consecutiveCount == 1) {
-                //cout << "one consecutive" << endl;
-                return false;
-            }
-        }
-        return true;
-    }
-
-    // Check row for duplicates within contiguous groups
-    std::unordered_set<int> rowSet;
-    for (int j = 0; j < gridSize; ++j) {
-        if (child.grid[row][j] == -1) {
-            rowSet.clear(); // Reset when encountering a block
-        } else if (child.grid[row][j] == value) {
-            return false; // Duplicate found in the same group
-        } else {
-            rowSet.insert(child.grid[row][j]);
-        }
-    }
-
-    // Check column for duplicates within contiguous groups
-    std::unordered_set<int> colSet;
-    for (int i = 0; i < gridSize; ++i) {
-        if (child.grid[i][col] == -1) {
-            colSet.clear(); // Reset when encountering a block
-        } else if (child.grid[i][col] == value) {
-            return false; // Duplicate found in the same group
-        } else {
-            colSet.insert(child.grid[i][col]);
-        }
-    }
-
-    return true;
-}
-
 Solution crossover(const Solution &parent1, const Solution &parent2) {
-    int gridSize = parent1.grid.size();
+    const int gridSize = (int)parent1.grid.size();
     Solution child(gridSize);
 
     // vertical or horizontal
@@ -432,7 +326,7 @@ Solution crossover(const Solution &parent1, const Solution &parent2) {
             }
 
         }
-    }else{//vertical
+    } else {//vertical
          for (int i = 0; i < gridSize; ++i) {
             for (int j = 0; j < gridSize; ++j) {
                 if(j <= partP1){
@@ -446,12 +340,11 @@ Solution crossover(const Solution &parent1, const Solution &parent2) {
     }
         
     return child;
-    
 }
 
 // Mutate a solution ensuring no duplicates in the row or column
 void mutate(Solution &sol) {
-    int gridSize = sol.grid.size();
+    const int gridSize = (int)sol.grid.size();
     int r = rand() % (gridSize - 1) + 1;
     int c = rand() % (gridSize - 1) + 1;
 
@@ -470,7 +363,7 @@ void mutate(Solution &sol) {
         }
         coordinates.insert({r,c});
         // Create new value (-1) or random number (1-9) with chance 20%
-        int newValue = (rand() % 10 < 2) ? -1 : rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
+        const int newValue = (rand() % 10 < 2) ? -1 : rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
         if (debugMutations) {
             std::cout << "mutating " << r << " " << c << " to " << newValue << std::endl;
         }
@@ -481,6 +374,7 @@ void mutate(Solution &sol) {
 // Main evolutionary algorithm
 Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations) {
     std::vector<Solution> population;
+    population.reserve(populationSize);
 
     // Initialize random population
     for (int i = 0; i < populationSize; ++i) {
@@ -532,15 +426,15 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
         // Create children using selection and crossover
         std::vector<Solution> children;
         while (children.size() < populationSize - eliteCount) {
-            double rand1 = static_cast<double>(rand()) / RAND_MAX;
-            double rand2 = static_cast<double>(rand()) / RAND_MAX;
+            const double rand1 = static_cast<double>(rand()) / RAND_MAX;
+            const double rand2 = static_cast<double>(rand()) / RAND_MAX;
 
             // Select two parents based on roulette wheel probabilities
-            auto it1 = std::lower_bound(cumulativeProbabilities.begin(), cumulativeProbabilities.end(), rand1);
-            auto it2 = std::lower_bound(cumulativeProbabilities.begin(), cumulativeProbabilities.end(), rand2);
+            const auto it1 = std::lower_bound(cumulativeProbabilities.begin(), cumulativeProbabilities.end(), rand1);
+            const auto it2 = std::lower_bound(cumulativeProbabilities.begin(), cumulativeProbabilities.end(), rand2);
 
-            int parent1Idx = std::distance(cumulativeProbabilities.begin(), it1);
-            int parent2Idx = std::distance(cumulativeProbabilities.begin(), it2);
+            const int parent1Idx = std::distance(cumulativeProbabilities.begin(), it1);
+            const int parent2Idx = std::distance(cumulativeProbabilities.begin(), it2);
 
             Solution child = crossover(population[parent1Idx], population[parent2Idx]);
 
