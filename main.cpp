@@ -19,15 +19,15 @@ constexpr int nGenerationsFactor = 1000;
 
 constexpr int punishmentLargeGroups = 1;
 constexpr int punishmentRepetition = 2;
-constexpr int rewardCorrectBoard = 1000;
-constexpr int rewardSingleGroup = 100;
-constexpr int punishmentPerGroup = 10;
-constexpr int rewardNoIsolatedNumbers = 100;
+constexpr int rewardCorrectBoard = 100;
+constexpr int rewardSingleGroup = 8;
+constexpr int punishmentPerGroup = 2;
+constexpr int rewardNoIsolatedNumbers = 10;
 constexpr int punishmentIsolatedNumbers = 10;
 constexpr int punishmentThreeByThree = 10;
-constexpr int punishmentPairs = 1;
+constexpr int punishmentPairs = 4;
 constexpr int punishmentNotSymmetric = 1;
-constexpr int punishmentUnusedRowOrColumn = 1;
+constexpr int punishmentUnusedRowOrColumn = 4;
 
 constexpr int MIN_DIGIT = 1;
 constexpr int MAX_DIGIT = 9;
@@ -65,8 +65,8 @@ Solution generateRandomSolution(int gridSize) {
     
     // If no numbers were generated, force at least one
     if (!hasNumber) {
-        int i = 1 + (rand() % (gridSize - 1));
-        int j = 1 + (rand() % (gridSize - 1));
+        const int i = 1 + (rand() % (gridSize - 1));
+        const int j = 1 + (rand() % (gridSize - 1));
         sol.grid[i][j] = rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
     }
 
@@ -324,7 +324,6 @@ Solution crossover(const Solution &parent1, const Solution &parent2) {
                     child.grid[i][j] = parent2.grid[i][j];
                 }
             }
-
         }
     } else {//vertical
          for (int i = 0; i < gridSize; ++i) {
@@ -335,7 +334,6 @@ Solution crossover(const Solution &parent1, const Solution &parent2) {
                     child.grid[i][j] = parent2.grid[i][j];
                 }
             }
-
         }
     }
         
