@@ -8,7 +8,7 @@ SRC = main.cpp
 all: $(TARGET)
 
 $(TARGET): $(SRC)
-	$(CC) $(CFLAGS) -o $(TARGET) $(SRC)
+	$(CC) $(CFLAGS) -o $(TARGET) $(SRC) -O3
 
 clean:
 	rm -f $(TARGET)
