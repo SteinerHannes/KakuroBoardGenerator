@@ -11,9 +11,23 @@
 #include <queue>
 
 const bool debugMutations = false;
-const bool debubScore = true;
+const bool debubScore = false;
 
-const auto gridSizes = {6}; //{ 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 };
+const auto gridSizes = { 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 };
+const int populationSizeFactor = 100;
+const int nGenerationsFactor = 1000;
+
+const int punishmentLargeGroups = 1;
+const int punishmentRepetition = 2;
+const int rewardCorrectBoard = 1000;
+const int rewardSingleGroup = 100;
+const int punishmentPerGroup = 10;
+const int rewardNoIsolatedNumbers = 100;
+const int punishmentIsolatedNumbers = 10;
+const int punishmentThreeByThree = 10;
+const int punishmentPairs = 1;
+const int punishmentNotSymmetric = 1;
+const int punishmentUnusedRowOrColumn = 1;
 
 using namespace std;
 
@@ -195,15 +209,6 @@ int evaluateFitness(const Solution &sol) {
     int gridSize = sol.grid.size();
     int fitness = 0;
     bool validBoard = true;
-    int punishmentLargeGroups = 1;
-    int punishmentRepetition = 2;
-    int rewardCorrectBoard = 1000;
-    int rewardSingleGroup = 100;
-    int punishmentPerGroup = 10;
-    int rewardNoIsolatedNumbers = 100;
-    int punishmentIsolatedNumbers = 10;
-    int punishmentThreeByThree = 10;
-    int punishmentPairs = 1;
 
     /*
       4 4
@@ -216,6 +221,8 @@ int evaluateFitness(const Solution &sol) {
 
     // Check rows and columns
     for (int i = 1; i < gridSize; ++i) {
+        bool rowUsed = false;
+        bool colUsed = false;
         // Check each row and column
         for (int isColumn = 0; isColumn <= 1; ++isColumn) {
             vector<int> sequence;
@@ -267,23 +274,67 @@ int evaluateFitness(const Solution &sol) {
 
                     auto punishmentFactor = 0.0;
 
-                    if (numbersInGroup < 6) {
+                    if (numbersInGroup < 4) {
                         punishmentFactor = 0;
-                    } else if (numbersInGroup == 6) {
-                        punishmentFactor = 1;
-                    } else if (numbersInGroup == 7) {
+                    }  else if (numbersInGroup == 4 ) {
                         punishmentFactor = 2;
-                    } else if (numbersInGroup == 8) {
+                    } else if ( numbersInGroup == 5) {
+                        punishmentFactor = 3;
+                    } else if (numbersInGroup == 6) {
                         punishmentFactor = 4;
+                    } else if (numbersInGroup == 7) {
+                        punishmentFactor = 6;
+                    } else if (numbersInGroup == 8) {
+                        punishmentFactor = 10;
                     } else if (numbersInGroup == 9) {
-                        punishmentFactor = 8;
-                    } else {
                         punishmentFactor = 16;
+                    } else {
+                        punishmentFactor = 26;
                     }
                     if (punishmentFactor > 0) {
                         fitness -= (int)(punishmentLargeGroups * punishmentFactor);
                         validBoard = false;
                     }
+                }
+
+                // Check everything below only once per grid
+                if (isColumn) {
+                    // Check if the board is symmetric across the main diagonal
+                    if ((sol.grid[i][j] == -1 && sol.grid[j][i] != -1) || (sol.grid[i][j] != -1 && sol.grid[j][i] == -1)) {
+                        fitness -= punishmentNotSymmetric;
+                    }
+
+                    // Check if there are 3x3 squares. If so punish for each
+                    if (sol.grid[i][j] != -1 && sol.grid[i-1][j] != -1 && sol.grid[i][j-1] != -1 && sol.grid[i-1][j-1] != -1) {
+                        fitness -= punishmentThreeByThree;
+                        validBoard = false;
+                    }
+
+                    // Check for swappable pairs
+                    if (sol.grid[i][j] != -1 && sol.grid[i-1][j] != -1 && sol.grid[i][j-1] != -1 && sol.grid[i-1][j-1] != -1) {
+                        if(sol.grid[i][j] == sol.grid[i-1][j] || sol.grid[i][j] == sol.grid[i][j-1] || sol.grid[i][j] == sol.grid[i-1][j-1]){
+                            fitness -= punishmentPairs;
+                            validBoard = false;
+                        }
+                    }
+
+                    if (sol.grid[i][j] != -1) {
+                        rowUsed = true;
+                    }
+                    if (sol.grid[j][i] != -1) {
+                        colUsed = true;
+                    }
+                }
+            }
+            // Check only once per grid
+            if (isColumn) {
+                if (!rowUsed) {
+                    fitness -= punishmentUnusedRowOrColumn;
+                    validBoard = false;
+                }
+                if (!colUsed) {
+                    fitness -= punishmentUnusedRowOrColumn;
+                    validBoard = false;
                 }
             }
         }
@@ -307,27 +358,6 @@ int evaluateFitness(const Solution &sol) {
         validBoard = false;
     }
 
-    // Check if there are 3x3 squares. If so punish for each
-    for (int i = 1; i < gridSize; ++i) {
-        for (int j = 1; j < gridSize; ++j) {
-            if (sol.grid[i][j] != -1 && sol.grid[i-1][j] != -1 && sol.grid[i][j-1] != -1 && sol.grid[i-1][j-1] != -1) {
-                fitness -= punishmentThreeByThree;
-                validBoard = false;
-            }
-        }
-    }
-
-    // Check for swappable pairs
-    for (int i = 1; i < gridSize; ++i) {
-        for (int j = 1; j < gridSize; ++j) {
-            if (sol.grid[i][j] != -1 && sol.grid[i-1][j] != -1 && sol.grid[i][j-1] != -1 && sol.grid[i-1][j-1] != -1) {
-                if(sol.grid[i][j] == sol.grid[i-1][j] || sol.grid[i][j] == sol.grid[i][j-1] || sol.grid[i][j] == sol.grid[i-1][j-1]){
-                    fitness -= punishmentPairs;
-                    validBoard = false;
-                }
-            }
-        }
-    }
 
     if(validBoard){
         fitness += rewardCorrectBoard;
@@ -465,8 +495,8 @@ void mutate(Solution &sol) {
     int r = rand() % (gridSize - 1) + 1;
     int c = rand() % (gridSize - 1) + 1;
 
-    //number of cells to mutate (max 5%  of the board)
-    const int mutations = rand() % (gridSize * gridSize / 20) + 1;
+    //number of cells to mutate (min 2 cells and max 20% of the board)
+    const int mutations = 2 + rand() % (gridSize * gridSize / 5 - 2);
     if (debugMutations) {
         cout << "mutations: " << mutations << endl;
     }
@@ -502,75 +532,79 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
 
     for (auto &sol : population) {
         sol.fitness = evaluateFitness(sol);
-            
         if (sol.fitness > bestSolution.fitness) {
-            bestSolution = sol; // save to file?
+            bestSolution = sol;
         }
     }
 
+    // Top 10% of population retained as elites
+    int eliteCount = max(1, populationSize / 10);
     int gen = 0;
+    int bestSolutionGeneration = 0;
 
-    while (gen < generations) { // do not check for fitness, stop if valid board generated
-
-        if(population[0].fitness > bestSolution.fitness){
-            bestSolution = population[0];            
-        }
-
+    while (gen < generations && gen < bestSolutionGeneration + nGenerationsFactor * 2) {
         if (debubScore) {
-            cout << "Generation " << gen << " best fitness: " << bestSolution.fitness << " average fitness: " << population[populationSize/2].fitness << endl;
+            cout << "Generation " << gen << " best fitness: " << bestSolution.fitness
+                 << " average fitness: " << population[populationSize / 2].fitness << endl;
         }
 
-        // extra validity check for best board, stop if valid
+        // Sort population by fitness (descending order)
+        sort(population.begin(), population.end(), [](const Solution &a, const Solution &b) {
+            return a.fitness > b.fitness;
+        });
 
-        // Selection
+        // Save the elites
+        vector<Solution> elites(population.begin(), population.begin() + eliteCount);
+
+        // Roulette wheel selection (probabilistic selection based on fitness)
+        vector<double> cumulativeProbabilities(populationSize);
+        double totalFitness = 0.0;
+        for (const auto &sol : population) {
+            totalFitness += max(1.0, static_cast<double>(sol.fitness + 1)); // Ensure all fitness values are positive
+        }
+
+        cumulativeProbabilities[0] = max(1.0, static_cast<double>(population[0].fitness + 1)) / totalFitness;
+        for (int i = 1; i < populationSize; ++i) {
+            cumulativeProbabilities[i] = cumulativeProbabilities[i - 1] +
+                max(1.0, static_cast<double>(population[i].fitness + 1)) / totalFitness;
+        }
+
+        // Create children using selection and crossover
         vector<Solution> children;
-        // iterate through population: parent1 = i, parent2 = random
-        // better fitness means more likely to be parent
+        while (children.size() < populationSize - eliteCount) {
+            double rand1 = static_cast<double>(rand()) / RAND_MAX;
+            double rand2 = static_cast<double>(rand()) / RAND_MAX;
 
-        for (int i = 0; i < populationSize; ++i) {
-            
-            int idx2 = 0;
+            // Select two parents based on roulette wheel probabilities
+            auto it1 = lower_bound(cumulativeProbabilities.begin(), cumulativeProbabilities.end(), rand1);
+            auto it2 = lower_bound(cumulativeProbabilities.begin(), cumulativeProbabilities.end(), rand2);
 
-            if(rand() % 2 == 0){
-                idx2 = rand() % populationSize;
-            }
-            else{
-                idx2 = rand() % (populationSize/2);
-            }
-        
-            Solution &parent1 = population[i];
-            Solution &parent2 = population[idx2];
-            
-            Solution child = crossover(parent1, parent2);
+            int parent1Idx = distance(cumulativeProbabilities.begin(), it1);
+            int parent2Idx = distance(cumulativeProbabilities.begin(), it2);
 
-            if (rand() % 100 < 60) { // Mutation chance 60%
-                mutate(child); 
+            Solution child = crossover(population[parent1Idx], population[parent2Idx]);
+
+            if (rand() % 100 < 80) { // 80% chance to mutate
+                mutate(child);
             }
 
             child.fitness = evaluateFitness(child);
-
-            // check if perfect solution has been created, then return
-
             children.push_back(child);
         }
 
-        vector<Solution>* totalPopulation = new vector<Solution>;
+        // Combine elites and children to form the next generation
+        population = elites;
+        population.insert(population.end(), children.begin(), children.end());
 
-        totalPopulation->reserve(population.size() + children.size());  // Optional but improves performance
-        totalPopulation->insert(totalPopulation->end(), population.begin(), population.end());
-        totalPopulation->insert(totalPopulation->end(), children.begin(), children.end()); 
+        // Update the best solution if needed
+        for (const auto &sol : population) {
+            if (sol.fitness > bestSolution.fitness) {
+                bestSolution = sol;
+                bestSolutionGeneration = gen;
+            }
+        }
 
-        sort(totalPopulation->begin(), totalPopulation->end(), [](const Solution& a, const Solution& b) {
-                return a.fitness > b.fitness;
-            }); 
-        
-        population.clear();
-        population = vector<Solution>(totalPopulation->begin(), totalPopulation->begin() + populationSize);
-
-        delete totalPopulation;
         gen++;
-
-        // fitness check
     }
 
     return bestSolution;
@@ -671,8 +705,8 @@ int main() {
     srand(time(0));
 
     for (auto size: gridSizes) {
-        auto populationSize = size * 10;
-        auto generations = size * 100;
+        auto populationSize = size * populationSizeFactor;
+        auto generations = size * nGenerationsFactor;
         // Run evolutionary algorithm
         Solution best = evolutionaryAlgorithm(size, populationSize , generations);
 
@@ -684,11 +718,24 @@ int main() {
             cout << endl;
         }
 
+        cout << endl;
+
+        for (const auto &row : best.grid) {
+            for (int cell : row) {
+                cout << (cell == -1 ? "X" : "O") << " ";
+            }
+            cout << endl;
+        }
+
+        cout << endl;
+
         // Derive empty board
         vector<vector<string>> emptyBoard = deriveEmptyBoard(best.grid);
 
         // Print empty board
         printEmptyBoard(emptyBoard);
+
+        saveEmptyBoardToFile(emptyBoard, "output_" + to_string(size) + ".txt");
     }
 
     return 0;
