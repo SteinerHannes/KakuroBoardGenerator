@@ -12,12 +12,13 @@
 
 const bool debugMutations = false;
 const bool debubScore = false;
+const bool debugOutput = true;
 
 const auto gridSizes = { 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20 };
-const int populationSizeFactor = 100;
-const int nGenerationsFactor = 1000;
+constexpr int populationSizeFactor = 100;
+constexpr int nGenerationsFactor = 1000;
 
-const int punishmentLargeGroups = 1;
+constexpr int punishmentLargeGroups = 1;
 const int punishmentRepetition = 2;
 const int rewardCorrectBoard = 1000;
 const int rewardSingleGroup = 100;
@@ -29,17 +30,15 @@ const int punishmentPairs = 1;
 const int punishmentNotSymmetric = 1;
 const int punishmentUnusedRowOrColumn = 1;
 
-using namespace std;
-
 const int MIN_DIGIT = 1;
 const int MAX_DIGIT = 9;
 
 struct Solution {
-    vector<vector<int>> grid; // 2D grid representing the solution
+    std::vector<std::vector<int>> grid; // 2D grid representing the solution
     int fitness;
 
     Solution(int gridSize) {
-        grid = vector<vector<int>>(gridSize, vector<int>(gridSize, 0));
+        grid = std::vector<std::vector<int>>(gridSize, std::vector<int>(gridSize, 0));
         fitness = 0;
     }
 
@@ -57,10 +56,7 @@ Solution generateRandomSolution(int gridSize) {
     // First pass: generate grid
     for (int i = 0; i < gridSize; ++i) {
         for (int j = 0; j < gridSize; ++j) {
-            if (i == 0 || j == 0) {
-                sol.grid[i][j] = -1; // Unfillable cell
-            }
-            else if (rand() % 5 == 0) {
+            if (i == 0 || j == 0 || rand() % 5 == 0) {
                 sol.grid[i][j] = -1;
             } else {
                 sol.grid[i][j] = rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
@@ -75,43 +71,7 @@ Solution generateRandomSolution(int gridSize) {
         int j = 1 + (rand() % (gridSize - 1));
         sol.grid[i][j] = rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
     }
-    
-    // Second pass: fix isolated numbers
-    // bool needsFixing;
-    // do {
-    //     needsFixing = false;
-    //     for (int i = 1; i < gridSize; ++i) {
-    //         for (int j = 1; j < gridSize; ++j) {
-    //             if (sol.grid[i][j] != -1) {
-    //                 // Check if number is isolated
-    //                 bool isIsolated = true;
-    //                 // Check adjacent cells (not diagonal)
-    //                 if ((i > 0 && sol.grid[i-1][j] != -1) ||
-    //                     (i < gridSize-1 && sol.grid[i+1][j] != -1) ||
-    //                     (j > 0 && sol.grid[i][j-1] != -1) ||
-    //                     (j < gridSize-1 && sol.grid[i][j+1] != -1)) {
-    //                     isIsolated = false;
-    //                 }
-                    
-    //                 if (isIsolated) {
-    //                     // Fix isolation by randomly making one adjacent cell a number
-    //                     vector<pair<int,int>> adjacent;
-    //                     if (i > 0) adjacent.push_back({i-1, j});
-    //                     if (i < gridSize-1) adjacent.push_back({i+1, j});
-    //                     if (j > 0) adjacent.push_back({i, j-1});
-    //                     if (j < gridSize-1) adjacent.push_back({i, j+1});
-                        
-    //                     if (!adjacent.empty()) {
-    //                         int idx = rand() % adjacent.size();
-    //                         sol.grid[adjacent[idx].first][adjacent[idx].second] = 
-    //                             rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
-    //                         needsFixing = true;
-    //                     }
-    //                 }
-    //             }
-    //         }
-    //     }
-    // } while (needsFixing);
+
     return sol;
 }
 
@@ -120,14 +80,14 @@ int countConnectedGroups(const Solution &sol) {
     int cols = sol.grid[0].size();
 
     // Directions for vertical and horizontal movement
-    vector<pair<int, int>> directions = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
+    std::vector<std::pair<int, int>> directions = {{-1, 0}, {1, 0}, {0, -1}, {0, 1}};
 
     // Visited set to track visited cells
-    vector<vector<bool>> visited(rows, vector<bool>(cols, false));
+    std::vector<std::vector<bool>> visited(rows, std::vector<bool>(cols, false));
 
     // BFS function to explore the connected component
     auto bfs = [&](int startX, int startY) {
-        queue<pair<int, int>> q;
+        std::queue<std::pair<int, int>> q;
         q.push({startX, startY});
         visited[startX][startY] = true;
 
@@ -225,7 +185,7 @@ int evaluateFitness(const Solution &sol) {
         bool colUsed = false;
         // Check each row and column
         for (int isColumn = 0; isColumn <= 1; ++isColumn) {
-            vector<int> sequence;
+            std::vector<int> sequence;
             int numbersInGroup = 0;
             
             for (int j = 1; j < gridSize; ++j) {
@@ -371,7 +331,7 @@ bool isUnique(const Solution &sol, int row, int col, int value) {
      int gridSize = sol.grid.size();
 
     // Check row for duplicates within contiguous groups
-    unordered_set<int> rowSet;
+    std::unordered_set<int> rowSet;
     for (int j = 0; j < gridSize; ++j) {
         if (sol.grid[row][j] == -1) {
             rowSet.clear(); // Reset when encountering a block
@@ -383,7 +343,7 @@ bool isUnique(const Solution &sol, int row, int col, int value) {
     }
 
     // Check column for duplicates within contiguous groups
-    unordered_set<int> colSet;
+    std::unordered_set<int> colSet;
     for (int i = 0; i < gridSize; ++i) {
         if (sol.grid[i][col] == -1) {
             colSet.clear(); // Reset when encountering a block
@@ -424,7 +384,7 @@ bool isValidInChild(const Solution &child, int row, int col, int value) {
     }
 
     // Check row for duplicates within contiguous groups
-    unordered_set<int> rowSet;
+    std::unordered_set<int> rowSet;
     for (int j = 0; j < gridSize; ++j) {
         if (child.grid[row][j] == -1) {
             rowSet.clear(); // Reset when encountering a block
@@ -436,7 +396,7 @@ bool isValidInChild(const Solution &child, int row, int col, int value) {
     }
 
     // Check column for duplicates within contiguous groups
-    unordered_set<int> colSet;
+    std::unordered_set<int> colSet;
     for (int i = 0; i < gridSize; ++i) {
         if (child.grid[i][col] == -1) {
             colSet.clear(); // Reset when encountering a block
@@ -498,7 +458,7 @@ void mutate(Solution &sol) {
     //number of cells to mutate (min 2 cells and max 20% of the board)
     const int mutations = 2 + rand() % (gridSize * gridSize / 5 - 2);
     if (debugMutations) {
-        cout << "mutations: " << mutations << endl;
+        std::cout << "mutations: " << mutations << std::endl;
     }
 
     std::set<std::pair<int, int>> coordinates;
@@ -512,7 +472,7 @@ void mutate(Solution &sol) {
         // Create new value (-1) or random number (1-9) with chance 20%
         int newValue = (rand() % 10 < 2) ? -1 : rand() % (MAX_DIGIT - MIN_DIGIT + 1) + MIN_DIGIT;
         if (debugMutations) {
-            cout << "mutating " << r << " " << c << " to " << newValue << endl;
+            std::cout << "mutating " << r << " " << c << " to " << newValue << std::endl;
         }
         sol.grid[r][c] = newValue;    
     }    
@@ -520,7 +480,7 @@ void mutate(Solution &sol) {
 
 // Main evolutionary algorithm
 Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations) {
-    vector<Solution> population;
+    std::vector<Solution> population;
 
     // Initialize random population
     for (int i = 0; i < populationSize; ++i) {
@@ -538,14 +498,14 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
     }
 
     // Top 10% of population retained as elites
-    int eliteCount = max(1, populationSize / 10);
+    int eliteCount = std::max(1, populationSize / 10);
     int gen = 0;
     int bestSolutionGeneration = 0;
 
     while (gen < generations && gen < bestSolutionGeneration + nGenerationsFactor * 2) {
         if (debubScore) {
-            cout << "Generation " << gen << " best fitness: " << bestSolution.fitness
-                 << " average fitness: " << population[populationSize / 2].fitness << endl;
+            std::cout << "Generation " << gen << " best fitness: " << bestSolution.fitness
+                 << " average fitness: " << population[populationSize / 2].fitness << std::endl;
         }
 
         // Sort population by fitness (descending order)
@@ -554,33 +514,33 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
         });
 
         // Save the elites
-        vector<Solution> elites(population.begin(), population.begin() + eliteCount);
+        std::vector<Solution> elites(population.begin(), population.begin() + eliteCount);
 
         // Roulette wheel selection (probabilistic selection based on fitness)
-        vector<double> cumulativeProbabilities(populationSize);
+        std::vector<double> cumulativeProbabilities(populationSize);
         double totalFitness = 0.0;
         for (const auto &sol : population) {
-            totalFitness += max(1.0, static_cast<double>(sol.fitness + 1)); // Ensure all fitness values are positive
+            totalFitness += std::max(1.0, static_cast<double>(sol.fitness + 1)); // Ensure all fitness values are positive
         }
 
-        cumulativeProbabilities[0] = max(1.0, static_cast<double>(population[0].fitness + 1)) / totalFitness;
+        cumulativeProbabilities[0] = std::max(1.0, static_cast<double>(population[0].fitness + 1)) / totalFitness;
         for (int i = 1; i < populationSize; ++i) {
             cumulativeProbabilities[i] = cumulativeProbabilities[i - 1] +
-                max(1.0, static_cast<double>(population[i].fitness + 1)) / totalFitness;
+                std::max(1.0, static_cast<double>(population[i].fitness + 1)) / totalFitness;
         }
 
         // Create children using selection and crossover
-        vector<Solution> children;
+        std::vector<Solution> children;
         while (children.size() < populationSize - eliteCount) {
             double rand1 = static_cast<double>(rand()) / RAND_MAX;
             double rand2 = static_cast<double>(rand()) / RAND_MAX;
 
             // Select two parents based on roulette wheel probabilities
-            auto it1 = lower_bound(cumulativeProbabilities.begin(), cumulativeProbabilities.end(), rand1);
-            auto it2 = lower_bound(cumulativeProbabilities.begin(), cumulativeProbabilities.end(), rand2);
+            auto it1 = std::lower_bound(cumulativeProbabilities.begin(), cumulativeProbabilities.end(), rand1);
+            auto it2 = std::lower_bound(cumulativeProbabilities.begin(), cumulativeProbabilities.end(), rand2);
 
-            int parent1Idx = distance(cumulativeProbabilities.begin(), it1);
-            int parent2Idx = distance(cumulativeProbabilities.begin(), it2);
+            int parent1Idx = std::distance(cumulativeProbabilities.begin(), it1);
+            int parent2Idx = std::distance(cumulativeProbabilities.begin(), it2);
 
             Solution child = crossover(population[parent1Idx], population[parent2Idx]);
 
@@ -610,9 +570,9 @@ Solution evolutionaryAlgorithm(int gridSize, int populationSize, int generations
     return bestSolution;
 }
 
-vector<vector<string>> deriveEmptyBoard(const vector<vector<int>> &grid) {
+std::vector<std::vector<std::string>> deriveEmptyBoard(const std::vector<std::vector<int>> &grid) {
     int gridSize = grid.size();
-    vector<vector<string>> emptyBoard(gridSize, vector<string>(gridSize, "E"));
+    std::vector<std::vector<std::string>> emptyBoard(gridSize, std::vector<std::string>(gridSize, "E"));
 
     for (int i = 0; i < gridSize; ++i) {
         for (int j = 0; j < gridSize; ++j) {
@@ -630,9 +590,9 @@ vector<vector<string>> deriveEmptyBoard(const vector<vector<int>> &grid) {
                 }
 
                 // Construct clue cell label, ensuring "/" is always included
-                string clue = to_string(verticalSum) + "/" + to_string(horizontalSum);
-                if (verticalSum == 0) clue = "/" + to_string(horizontalSum); // Only horizontal
-                if (horizontalSum == 0) clue = to_string(verticalSum) + "/"; // Only vertical
+                std::string clue = std::to_string(verticalSum) + "/" + std::to_string(horizontalSum);
+                if (verticalSum == 0) clue = "/" + std::to_string(horizontalSum); // Only horizontal
+                if (horizontalSum == 0) clue = std::to_string(verticalSum) + "/"; // Only vertical
 
                 if (clue == "0/0" ||  clue == "/0" ||  clue == "0/") {
                     clue = "#"; // Replace unmodifiable cells
@@ -649,56 +609,49 @@ vector<vector<string>> deriveEmptyBoard(const vector<vector<int>> &grid) {
 }
 
 // Function to print the derived empty board with aligned columns
-void printEmptyBoard(const vector<vector<string>> &emptyBoard) {
+void printEmptyBoard(const std::vector<std::vector<std::string>> &emptyBoard) {
     // Determine the maximum width of any cell
     size_t maxWidth = 0;
     for (const auto &row : emptyBoard) {
         for (const auto &cell : row) {
-            maxWidth = max(maxWidth, cell.size());
+            maxWidth = std::max(maxWidth, cell.size());
         }
     }
 
     // Print each row with aligned columns
     for (const auto &row : emptyBoard) {
-        for (size_t j = 0; j < row.size(); ++j) {
-            cout << std::setw(maxWidth) << row[j]; // Align each cell
-            if (j < row.size() - 1) {
-                cout << " "; // Add space between columns
-            }
+        for (const auto &cell : row) {
+            std::cout << std::setw(maxWidth) << cell << " "; // Align each cell and add space
         }
-        cout << endl;
+        std::cout << std::endl;
     }
 }
 
-void saveEmptyBoardToFile(const vector<vector<string>> &emptyBoard, const string &filename) {
-    // Open the file for writing
-    ofstream outFile(filename);
-
+void saveEmptyBoardToFile(const std::vector<std::vector<std::string>> &emptyBoard, const std::string &filename) {
+    std::ofstream outFile(filename);
     if (!outFile) {
-        cerr << "Error opening file for writing!" << endl;
+        std::cerr << "Error opening file for writing!" << std::endl;
         return;
     }
 
-    // Determine the maximum width of any cell
     size_t maxWidth = 0;
     for (const auto &row : emptyBoard) {
         for (const auto &cell : row) {
-            maxWidth = max(maxWidth, cell.size());
+            maxWidth = std::max(maxWidth, cell.size());
         }
     }
 
-    // Write each row with aligned columns to the file
     for (const auto &row : emptyBoard) {
         for (size_t j = 0; j < row.size(); ++j) {
-            outFile << std::setw(maxWidth) << row[j]; // Align each cell
+            outFile << std::setw(maxWidth) << row[j];
             if (j < row.size() - 1) {
-                outFile << " "; // Add space between columns
+                outFile << " ";
             }
         }
-        outFile << endl;
+        outFile << std::endl;
     }
 
-    outFile.close(); // Close the file
+    outFile.close();
 }
 
 int main() {
@@ -709,33 +662,28 @@ int main() {
         auto generations = size * nGenerationsFactor;
         // Run evolutionary algorithm
         Solution best = evolutionaryAlgorithm(size, populationSize , generations);
-
-        // Print the best solution
-        for (const auto &row : best.grid) {
-            for (int cell : row) {
-                cout << (cell == -1 ? "X" : to_string(cell)) << " ";
-            }
-            cout << endl;
-        }
-
-        cout << endl;
-
-        for (const auto &row : best.grid) {
-            for (int cell : row) {
-                cout << (cell == -1 ? "X" : "O") << " ";
-            }
-            cout << endl;
-        }
-
-        cout << endl;
-
         // Derive empty board
-        vector<vector<string>> emptyBoard = deriveEmptyBoard(best.grid);
+        std::vector<std::vector<std::string>> emptyBoard = deriveEmptyBoard(best.grid);
 
-        // Print empty board
-        printEmptyBoard(emptyBoard);
+        if (debugOutput) {
+            for (const auto &row : best.grid) {
+                for (int cell : row) {
+                    std::cout << (cell == -1 ? "X" : std::to_string(cell)) << " ";
+                }
+                std::cout << std::endl;
+            }
+            std::cout << std::endl;
+            for (const auto &row : best.grid) {
+                for (int cell : row) {
+                    std::cout << (cell == -1 ? "X" : "O") << " ";
+                }
+                std::cout << std::endl;
+            }
+            std::cout << std::endl;
+            printEmptyBoard(emptyBoard);
+        }
 
-        saveEmptyBoardToFile(emptyBoard, "output_" + to_string(size) + ".txt");
+        saveEmptyBoardToFile(emptyBoard, "output_" + std::to_string(size) + ".txt");
     }
 
     return 0;
